@@ -41,7 +41,7 @@ function emitProp(s: PropertySpec): string {
   const vars = s.binders.map((b) => b.varName).join(", ");
   const errMsg = JSON.stringify(`property '${s.name}' did not evaluate to a boolean`);
   const out: string[] = [];
-  out.push(`    test.prop([${arbs}])(${JSON.stringify(s.name)}, ([${vars}]) => {`);
+  out.push(`    test.prop([${arbs}])(${JSON.stringify(s.name)}, (${vars}) => {`);
   for (const p of s.preconditions) out.push(`      fc.pre(${p});`);
   out.push(`      const __r = (${s.body});`);
   out.push(`      if (typeof __r !== "boolean") throw new Error(${errMsg});`);

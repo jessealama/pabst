@@ -28,7 +28,7 @@ describe("emit", () => {
   it("emits the describe hierarchy and test.prop with arbitraries", () => {
     expect(out).toContain('describe("pabst", () => {');
     expect(out).toContain('describe("foo", () => {');
-    expect(out).toContain('test.prop([fc.integer(), fc.double()])("nonzero", ([x, y]) => {');
+    expect(out).toContain('test.prop([fc.integer(), fc.double()])("nonzero", (x, y) => {');
   });
 
   it("lifts preconditions, checks boolean, returns the body", () => {
