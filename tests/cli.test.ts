@@ -34,4 +34,16 @@ describe("cli main", () => {
   it("returns 2 when no patterns are given", () => {
     expect(main(["gen"])).toBe(2);
   });
+
+  it("returns 2 on a non-integer --seed", () => {
+    expect(main(["gen", "--seed", "4.2", "baz.ts"])).toBe(2);
+  });
+
+  it("returns 2 on an out-of-range --seed", () => {
+    expect(main(["gen", "--seed", String(2 ** 32), "baz.ts"])).toBe(2);
+  });
+
+  it("gen accepts a valid --seed and returns 0", () => {
+    expect(main(["gen", "--seed", "123", "baz.ts"])).toBe(0);
+  });
 });
