@@ -22,13 +22,13 @@ describe("generate", () => {
   });
 
   it("writes one generated test file and reports the count", () => {
-    const results = generate(["bar.ts"]);
+    const results = generate(["bar.ts"], ".pabst", 7);
     expect(results).toHaveLength(1);
     expect(results[0]!.propertyCount).toBe(1);
     expect(results[0]!.outFile).toBe(path.join(".pabst", "bar.pabst.test.ts"));
     expect(fs.existsSync(results[0]!.outFile)).toBe(true);
     const code = fs.readFileSync(results[0]!.outFile, "utf8");
-    expect(code).toContain('test.prop([fc.nat()], { reporter: (d) => __pabstReport("pos", ["n"], d) })("pos"');
+    expect(code).toContain('test.prop([fc.nat()], { seed: 7, reporter: (d) => __pabstReport("bar.ts", "bar", "pos", ["n"], d) })("pos"');
     expect(code).toContain("const { bar } = __M;");
   });
 });

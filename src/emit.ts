@@ -4,7 +4,7 @@ import type { PropertySpec } from "./ir.js";
 
 const SRC_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
 
-export function emit(specs: PropertySpec[], sourceFile: string, outFile: string): string {
+export function emit(specs: PropertySpec[], sourceFile: string, outFile: string, seed: number): string {
   const srcAbs = path.resolve(sourceFile).replace(SRC_EXT, "");
   const outDir = path.dirname(path.resolve(outFile));
   let rel = path.relative(outDir, srcAbs).split(path.sep).join("/");
@@ -29,7 +29,7 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string)
   }
   for (const [fnName, fnSpecs] of groups) {
     lines.push(`  describe(${JSON.stringify(fnName)}, () => {`);
-    for (const s of fnSpecs) lines.push(emitProp(s));
+    for (const s of fnSpecs) lines.push(emitProp(s, sourceFile, seed));
     lines.push(`  });`);
   }
   lines.push(`});`);
@@ -37,15 +37,18 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string)
   return lines.join("\n");
 }
 
-function emitProp(s: PropertySpec): string {
+function emitProp(s: PropertySpec, sourceFile: string, seed: number): string {
   const arbs = s.binders.map((b) => arbitraryFor(b.domain)).join(", ");
   const vars = s.binders.map((b) => b.varName).join(", ");
   const varNames = s.binders.map((b) => JSON.stringify(b.varName)).join(", ");
   const name = JSON.stringify(s.name);
+  const file = JSON.stringify(sourceFile);
+  const fn = JSON.stringify(s.functionName);
   const errMsg = JSON.stringify(`property '${s.name}' did not evaluate to a boolean`);
-  const reporter = `{ reporter: (d) => __pabstReport(${name}, [${varNames}], d) }`;
+  const reporter = `(d) => __pabstReport(${file}, ${fn}, ${name}, [${varNames}], d)`;
+  const params = `{ seed: ${seed}, reporter: ${reporter} }`;
   const out: string[] = [];
-  out.push(`    test.prop([${arbs}], ${reporter})(${JSON.stringify(s.name)}, (${vars}) => {`);
+  out.push(`    test.prop([${arbs}], ${params})(${name}, (${vars}) => {`);
   for (const p of s.preconditions) out.push(`      fc.pre(${p});`);
   out.push(`      const __r = (${s.body});`);
   out.push(`      if (typeof __r !== "boolean") throw new Error(${errMsg});`);
