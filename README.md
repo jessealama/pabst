@@ -14,9 +14,52 @@ export function foo(x: bigint, y: number): number { /* ... */ }
 ## Usage
 
 ```bash
-pabst test <files-or-globs>   # generate property tests into .pabst/ and run vitest
-pabst gen  <files-or-globs>   # generate only; run your own vitest against .pabst/
+pabst test <files-or-globs>            # generate, run, and print a JSON report
+pabst test --seed <n> <files-or-globs> # reproduce a prior run's generation
+pabst gen  <files-or-globs>            # generate only; run your own vitest against .pabst/
 ```
+
+## Output
+
+`pabst test` prints a single JSON object to **stdout**; **stderr** carries only
+progress and crashes. The envelope is always present — a clean run just has an
+empty `issues` array:
+
+```json
+{
+  "version": "0.0.1",
+  "startedAt": "2026-06-26T17:42:03.000Z",
+  "cwd": "/path/to/project",
+  "seed": 1834592013,
+  "generated": 5,
+  "passed": 5,
+  "failed": 0,
+  "issues": []
+}
+```
+
+Each issue records where the property lived and why it failed:
+
+```json
+{
+  "file": "src/math.ts",
+  "function": "add",
+  "property": "commutes",
+  "kind": "falsified",
+  "counterexample": { "x": 1, "y": 2 }
+}
+```
+
+- `kind` is `"falsified"` (returned `false`), `"threw"` (raised an exception —
+  see `error`), or `"exhausted"` (too many precondition skips — `error` explains,
+  and there is no `counterexample`).
+- Counterexample values are JSON-native where they round-trip; bigints and
+  non-finite numbers appear as fast-check strings (e.g. `"1n"`).
+- The `seed` is generated per run and echoed back; pass it to `--seed` to
+  reproduce a failing run exactly.
+
+The process exits `0` when `issues` is empty, `1` when there is at least one
+issue, and `2` on usage errors.
 
 ## Grammar (MVP)
 
@@ -32,9 +75,10 @@ pabst gen  <files-or-globs>   # generate only; run your own vitest against .pabs
 - **Evaluation:** the body must evaluate to a boolean — `true` passes, `false` or a
   thrown error is a counterexample, and a non-boolean result is a distinct error.
 
-Each `@ensures{name}` becomes a `pabst › <function> › <name>` entry in vitest's
-report. Generated files land in a gitignored `.pabst/` directory mirroring the source
-tree; they are regenerated every run and must never be hand-edited.
+Each `@ensures{name}` becomes one issue (keyed by file, function, and property
+name) if it fails. Generated files land in a gitignored `.pabst/` directory
+mirroring the source tree; they are regenerated every run and must never be
+hand-edited.
 
 ## Development
 
