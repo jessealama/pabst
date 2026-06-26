@@ -1,8 +1,11 @@
 import { parseArgs } from "node:util";
-import { globSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
+import { formatRun } from "./format.js";
+
+const RESULTS_FILE = ".pabst/.last-run.json";
 
 const TS_EXT = /\.(ts|tsx|mts|cts)$/;
 
@@ -32,8 +35,27 @@ export function main(argv: string[] = process.argv.slice(2)): number {
 
   if (command === "gen") return 0;
 
-  const res = spawnSync("npx", ["vitest", "run", ".pabst"], { stdio: "inherit" });
-  return res.status ?? 1;
+  // Capture vitest's machine-readable output instead of inheriting its full
+  // reporter (tree + banners + stacks). We render a compact summary ourselves.
+  const res = spawnSync(
+    "npx",
+    ["vitest", "run", ".pabst", "--reporter=json", `--outputFile=${RESULTS_FILE}`],
+    { encoding: "utf8" },
+  );
+
+  let json;
+  try {
+    json = JSON.parse(readFileSync(RESULTS_FILE, "utf8"));
+  } catch {
+    // No parseable results (e.g. the generated tests failed to compile). Surface
+    // vitest's raw output so the underlying error isn't swallowed.
+    process.stderr.write(res.stdout ?? "");
+    process.stderr.write(res.stderr ?? "");
+    return res.status ?? 1;
+  }
+
+  console.log(formatRun(json));
+  return json.success ? 0 : 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

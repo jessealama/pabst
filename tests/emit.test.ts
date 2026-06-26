@@ -28,7 +28,7 @@ describe("emit", () => {
   it("emits the describe hierarchy and test.prop with arbitraries", () => {
     expect(out).toContain('describe("pabst", () => {');
     expect(out).toContain('describe("foo", () => {');
-    expect(out).toContain('test.prop([fc.integer(), fc.double()])("nonzero", (x, y) => {');
+    expect(out).toContain('test.prop([fc.integer(), fc.double()], { reporter: (d) => __pabstReport("nonzero", ["x", "y"], d) })("nonzero", (x, y) => {');
   });
 
   it("lifts preconditions, checks boolean, returns the body", () => {
@@ -36,5 +36,19 @@ describe("emit", () => {
     expect(out).toContain("const __r = (foo(x, y) !== 0);");
     expect(out).toContain('if (typeof __r !== "boolean") throw new Error("property \'nonzero\' did not evaluate to a boolean");');
     expect(out).toContain("return __r;");
+  });
+
+  it("passes a reporter that names the property and binds the counterexample", () => {
+    expect(out).toContain('test.prop([fc.integer(), fc.double()], { reporter: (d) => __pabstReport("nonzero", ["x", "y"], d) })("nonzero", (x, y) => {');
+  });
+
+  it("imports the reporter from the runtime library once", () => {
+    expect(out).toContain('import { report as __pabstReport } from "pabst/runtime";');
+    // no inline copy of the helper
+    expect(out).not.toContain("function __pabstReport(");
+    // a single import, no matter how many properties
+    const multi = emit([spec, { ...spec, name: "other" }], "foo.ts", ".pabst/foo.pabst.test.ts");
+    const occurrences = multi.split('from "pabst/runtime"').length - 1;
+    expect(occurrences).toBe(1);
   });
 });

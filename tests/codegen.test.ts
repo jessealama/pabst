@@ -28,7 +28,7 @@ describe("generate", () => {
     expect(results[0]!.outFile).toBe(path.join(".pabst", "bar.pabst.test.ts"));
     expect(fs.existsSync(results[0]!.outFile)).toBe(true);
     const code = fs.readFileSync(results[0]!.outFile, "utf8");
-    expect(code).toContain('test.prop([fc.nat()])("pos"');
+    expect(code).toContain('test.prop([fc.nat()], { reporter: (d) => __pabstReport("pos", ["n"], d) })("pos"');
     expect(code).toContain("const { bar } = __M;");
   });
 });

@@ -15,6 +15,7 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string)
   const lines: string[] = [];
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
+  lines.push(`import { report as __pabstReport } from "pabst/runtime";`);
   lines.push(`import * as __M from "${rel}";`);
   if (allExports.length > 0) lines.push(`const { ${allExports.join(", ")} } = __M;`);
   lines.push("");
@@ -39,9 +40,12 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string)
 function emitProp(s: PropertySpec): string {
   const arbs = s.binders.map((b) => arbitraryFor(b.domain)).join(", ");
   const vars = s.binders.map((b) => b.varName).join(", ");
+  const varNames = s.binders.map((b) => JSON.stringify(b.varName)).join(", ");
+  const name = JSON.stringify(s.name);
   const errMsg = JSON.stringify(`property '${s.name}' did not evaluate to a boolean`);
+  const reporter = `{ reporter: (d) => __pabstReport(${name}, [${varNames}], d) }`;
   const out: string[] = [];
-  out.push(`    test.prop([${arbs}])(${JSON.stringify(s.name)}, (${vars}) => {`);
+  out.push(`    test.prop([${arbs}], ${reporter})(${JSON.stringify(s.name)}, (${vars}) => {`);
   for (const p of s.preconditions) out.push(`      fc.pre(${p});`);
   out.push(`      const __r = (${s.body});`);
   out.push(`      if (typeof __r !== "boolean") throw new Error(${errMsg});`);

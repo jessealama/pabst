@@ -34,6 +34,7 @@ describe("end-to-end", () => {
     expect(r).toBeDefined();
     const { status, output } = runVitest(r!.outFile);
     expect(status).not.toBe(0);
-    expect(output).toMatch(/Counterexample|Property failed/i);
+    // the reporter binds the counterexample to the binder name
+    expect(output).toMatch(/property 'wrong' falsified by x = 1/);
   });
 });
