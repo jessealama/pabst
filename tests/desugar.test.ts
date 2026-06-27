@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { desugar } from "../src/desugar.js";
 
+describe("desugar — errors", () => {
+  it("throws on unbalanced parentheses in the body", () => {
+    expect(() => desugar("foo(x")).toThrow(/unbalanced parentheses in property body/);
+  });
+});
+
 describe("desugar", () => {
   it("leaves an arrow-free body untouched", () => {
     expect(desugar("foo(x, y) !== 0")).toEqual({ preconditions: [], body: "foo(x, y) !== 0" });

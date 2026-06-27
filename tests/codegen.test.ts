@@ -14,6 +14,11 @@ describe("generate", () => {
       `/** @ensures{pos} forall (n: nat), bar(n) >= 0 */\nexport function bar(n: number): number { return n; }\n`,
       "utf8",
     );
+    fs.writeFileSync(
+      path.join(dir, "plain.ts"),
+      `export function plain(n: number): number { return n; }\n`,
+      "utf8",
+    );
     process.chdir(dir);
   });
   afterAll(() => {
@@ -30,5 +35,11 @@ describe("generate", () => {
     const code = fs.readFileSync(results[0]!.outFile, "utf8");
     expect(code).toContain('test.prop([fc.nat()], { seed: 7, reporter: (d) => __pabstReport("bar.ts", "bar", "pos", ["n"], d) })("pos"');
     expect(code).toContain("const { bar } = __M;");
+  });
+
+  it("skips a file with no @ensures annotations", () => {
+    const results = generate(["plain.ts"], ".pabst", 7);
+    expect(results).toEqual([]);
+    expect(fs.existsSync(path.join(".pabst", "plain.pabst.test.ts"))).toBe(false);
   });
 });
