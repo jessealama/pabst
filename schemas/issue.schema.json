@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pabst.test/schemas/issue.schema.json",
+  "title": "Pabst Issue",
+  "description": "A single property failure emitted by the pabst reporter.",
+  "type": "object",
+  "oneOf": [
+    {
+      "title": "falsified",
+      "additionalProperties": false,
+      "required": ["file", "function", "property", "kind", "counterexample"],
+      "properties": {
+        "file": { "type": "string" },
+        "function": { "$ref": "#/definitions/functionName" },
+        "property": { "type": "string", "minLength": 1 },
+        "kind": { "const": "falsified" },
+        "counterexample": { "$ref": "#/definitions/counterexample" }
+      }
+    },
+    {
+      "title": "threw",
+      "additionalProperties": false,
+      "required": ["file", "function", "property", "kind", "counterexample", "error"],
+      "properties": {
+        "file": { "type": "string" },
+        "function": { "$ref": "#/definitions/functionName" },
+        "property": { "type": "string", "minLength": 1 },
+        "kind": { "const": "threw" },
+        "counterexample": { "$ref": "#/definitions/counterexample" },
+        "error": { "type": "string" }
+      }
+    },
+    {
+      "title": "exhausted",
+      "additionalProperties": false,
+      "required": ["file", "function", "property", "kind", "error"],
+      "properties": {
+        "file": { "type": "string" },
+        "function": { "$ref": "#/definitions/functionName" },
+        "property": { "type": "string", "minLength": 1 },
+        "kind": { "const": "exhausted" },
+        "error": { "type": "string" }
+      }
+    }
+  ],
+  "definitions": {
+    "functionName": {
+      "type": "string",
+      "description": "Bare function name, or Class#method (instance) / Class.method (static).",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$"
+    },
+    "counterexample": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": ["number", "boolean", "string"] }
+    }
+  }
+}
