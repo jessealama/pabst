@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Bundle every non-breaking update (dependencies + devDependencies)
+    # into a single grouped PR.
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    # Major bumps are deliberately left out of the group, so Dependabot
+    # opens a separate PR for each one (e.g. vitest 4 -> 5) for individual
+    # review.
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Bundle all GitHub Actions version bumps into a single grouped PR.
+    groups:
+      actions:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    # As with npm, major action bumps get their own PRs for individual review.
