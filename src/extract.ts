@@ -17,7 +17,9 @@ export interface ExtractResult {
   annotations: RawAnnotation[];
 }
 
-const ENSURES = /@ensures\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}([\s\S]*)/;
+// The `@ensures` tag name is matched via the JSDoc AST; this only peels the
+// `{name}` prefix off the tag's comment text, leaving the formula as the rest.
+const ENSURES_NAME = /^\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}([\s\S]*)$/;
 
 interface EnsuresMatch {
   propertyName: string;
@@ -25,8 +27,17 @@ interface EnsuresMatch {
   line: number;
 }
 
+/** Read a source file from disk and extract its annotations. */
 export function extract(file: string): ExtractResult {
-  const text = fs.readFileSync(file, "utf8");
+  return extractFromSource(fs.readFileSync(file, "utf8"), file);
+}
+
+/**
+ * Extract `@ensures` annotations and exported names from already-loaded source
+ * text. `file` is only a label — for diagnostics and the returned `file` field —
+ * so this is pure and testable without touching disk.
+ */
+export function extractFromSource(text: string, file: string): ExtractResult {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const exportsSet = collectExports(sf);
   const annotations: RawAnnotation[] = [];
@@ -44,12 +55,12 @@ export function extract(file: string): ExtractResult {
 
   for (const stmt of sf.statements) {
     if (ts.isClassDeclaration(stmt)) {
-      collectClassAnnotations(stmt, text, sf, exportsSet, file, record);
+      collectClassAnnotations(stmt, sf, exportsSet, file, record);
       continue;
     }
     const fnName = functionNameOf(stmt);
     if (!fnName) continue;
-    for (const m of ensuresComments(stmt, text, sf)) {
+    for (const m of ensuresComments(stmt, sf)) {
       record(
         { propertyName: m.propertyName, functionName: fnName, formula: m.formula, line: m.line },
         fnName,
@@ -60,18 +71,17 @@ export function extract(file: string): ExtractResult {
   return { file, exports: exportsSet, annotations };
 }
 
-function ensuresComments(node: ts.Node, text: string, sf: ts.SourceFile): EnsuresMatch[] {
+function ensuresComments(node: ts.Node, sf: ts.SourceFile): EnsuresMatch[] {
   const out: EnsuresMatch[] = [];
-  const ranges = ts.getLeadingCommentRanges(text, node.getFullStart()) ?? [];
-  for (const r of ranges) {
-    if (r.kind !== ts.SyntaxKind.MultiLineCommentTrivia) continue;
-    const clean = stripJsdoc(text.slice(r.pos, r.end));
-    const m = ENSURES.exec(clean);
+  for (const tag of ts.getJSDocTags(node)) {
+    if (tag.tagName.escapedText !== "ensures") continue;
+    const comment = ts.getTextOfJSDocComment(tag.comment)?.trim() ?? "";
+    const m = ENSURES_NAME.exec(comment);
     if (!m) continue;
     out.push({
       propertyName: m[1]!,
       formula: m[2]!.trim(),
-      line: sf.getLineAndCharacterOfPosition(r.pos).line + 1,
+      line: sf.getLineAndCharacterOfPosition(tag.pos).line + 1,
     });
   }
   return out;
@@ -79,7 +89,6 @@ function ensuresComments(node: ts.Node, text: string, sf: ts.SourceFile): Ensure
 
 function collectClassAnnotations(
   cls: ts.ClassDeclaration,
-  text: string,
   sf: ts.SourceFile,
   exportsSet: Set<string>,
   file: string,
@@ -87,7 +96,7 @@ function collectClassAnnotations(
 ): void {
   const className = cls.name?.text;
   for (const member of cls.members) {
-    const matches = ensuresComments(member, text, sf);
+    const matches = ensuresComments(member, sf);
     if (matches.length === 0) continue;
     const label = memberLabel(member);
     if (!className) {
@@ -189,11 +198,4 @@ function collectExports(sf: ts.SourceFile): Set<string> {
     }
   }
   return out;
-}
-
-function stripJsdoc(raw: string): string {
-  let s = raw;
-  if (s.startsWith("/*")) s = s.slice(2);
-  if (s.endsWith("*/")) s = s.slice(0, -2);
-  return s.split("\n").map((line) => line.replace(/^\s*\*?\s?/, "")).join("\n").trim();
 }
