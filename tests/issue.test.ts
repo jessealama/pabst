@@ -26,4 +26,10 @@ describe("parseIssue", () => {
   it("returns null when the tagged payload is not valid JSON", () => {
     expect(parseIssue(ISSUE_SENTINEL + "{not json")).toBeNull();
   });
+
+  it("returns null when a brace-balanced payload still fails to parse", () => {
+    // Matches ISSUE_RE (has a closing brace) but is not valid JSON, so the
+    // JSON.parse catch — not the no-match path — produces the null.
+    expect(parseIssue(ISSUE_SENTINEL + "{not: json}")).toBeNull();
+  });
 });

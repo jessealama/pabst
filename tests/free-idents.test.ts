@@ -11,6 +11,13 @@ describe("freeIdentifiers", () => {
     const ids = freeIdentifiers("({ a: x }).a === x");
     expect([...ids].sort()).toEqual(["x"]);
   });
+
+  it("excludes the right side of a qualified type name", () => {
+    // In `x as Foo.Bar`, `Bar` is the right of a qualified name and must be
+    // dropped; `Foo` (the left) and `x` remain.
+    const ids = freeIdentifiers("x as Foo.Bar");
+    expect([...ids].sort()).toEqual(["Foo", "x"]);
+  });
 });
 
 describe("classify", () => {

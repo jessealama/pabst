@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { parsePrefix } from "../src/prefix-parser.js";
 
+describe("parsePrefix — errors", () => {
+  it("throws when no comma separates the binders from the body", () => {
+    expect(() => parsePrefix("forall (x: int) foo(x)")).toThrow(/expected ',' separating binders from body/);
+  });
+});
+
 describe("parsePrefix", () => {
   it("parses multiple binder groups and the body", () => {
     const r = parsePrefix("forall (x: int) (y: number), foo(x, y) !== 0");

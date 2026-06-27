@@ -77,6 +77,20 @@ const staticSpec: PropertySpec = {
   location: { file: "arith.ts", line: 1 },
 };
 
+describe("emit — import path and exports", () => {
+  it("prefixes a non-relative import specifier with ./", () => {
+    // Source sits below the output dir, so path.relative yields a bare
+    // 'sub/bar' that must be made explicitly relative.
+    const out = emit([{ ...spec, freeExports: [] }], "sub/bar.ts", "out.pabst.test.ts", 42);
+    expect(out).toContain('import * as __M from "./sub/bar";');
+  });
+
+  it("omits the destructuring line when there are no free exports", () => {
+    const out = emit([{ ...spec, freeExports: [] }], "foo.ts", ".pabst/foo.pabst.test.ts", 42);
+    expect(out).not.toContain("} = __M;");
+  });
+});
+
 describe("emit — class methods", () => {
   it("nests describe(class) > describe(method) for an instance method", () => {
     const out = emit([instanceSpec], "counter.ts", ".pabst/counter.pabst.test.ts", 7);
