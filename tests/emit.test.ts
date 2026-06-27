@@ -52,3 +52,47 @@ describe("emit", () => {
     expect(occurrences).toBe(1);
   });
 });
+
+const instanceSpec: PropertySpec = {
+  name: "incAddsOne",
+  functionName: "inc",
+  className: "Counter",
+  isStatic: false,
+  binders: [{ varName: "x", domain: "int" }],
+  body: "new Counter(x).inc().value === x + 1",
+  preconditions: [],
+  freeExports: ["Counter"],
+  location: { file: "counter.ts", line: 1 },
+};
+
+const staticSpec: PropertySpec = {
+  name: "matchesSubtraction",
+  functionName: "negate",
+  className: "Arith",
+  isStatic: true,
+  binders: [{ varName: "x", domain: "number" }],
+  body: "Object.is(Arith.negate(x), 0 - x)",
+  preconditions: [],
+  freeExports: ["Arith"],
+  location: { file: "arith.ts", line: 1 },
+};
+
+describe("emit — class methods", () => {
+  it("nests describe(class) > describe(method) for an instance method", () => {
+    const out = emit([instanceSpec], "counter.ts", ".pabst/counter.pabst.test.ts", 7);
+    expect(out).toContain('describe("Counter", () => {');
+    expect(out).toContain('describe("inc", () => {');
+  });
+
+  it("passes the # qualified name to the reporter for an instance method", () => {
+    const out = emit([instanceSpec], "counter.ts", ".pabst/counter.pabst.test.ts", 7);
+    expect(out).toContain('__pabstReport("counter.ts", "Counter#inc", "incAddsOne", ["x"], d)');
+  });
+
+  it("passes the . qualified name to the reporter for a static method", () => {
+    const out = emit([staticSpec], "arith.ts", ".pabst/arith.pabst.test.ts", 7);
+    expect(out).toContain('describe("Arith", () => {');
+    expect(out).toContain('describe("negate", () => {');
+    expect(out).toContain('__pabstReport("arith.ts", "Arith.negate", "matchesSubtraction", ["x"], d)');
+  });
+});

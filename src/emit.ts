@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { arbitraryFor } from "./domains.js";
+import { qualifiedName } from "./qualified-name.js";
 import type { PropertySpec } from "./ir.js";
 
 const SRC_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
@@ -21,38 +22,58 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
   lines.push("");
   lines.push(`describe("pabst", () => {`);
 
-  const groups = new Map<string, PropertySpec[]>();
+  // Group by class (undefined = top-level function), then by member name.
+  const byClass = new Map<string | undefined, Map<string, PropertySpec[]>>();
   for (const s of specs) {
-    const arr = groups.get(s.functionName) ?? [];
+    let methods = byClass.get(s.className);
+    if (!methods) {
+      methods = new Map<string, PropertySpec[]>();
+      byClass.set(s.className, methods);
+    }
+    const arr = methods.get(s.functionName) ?? [];
     arr.push(s);
-    groups.set(s.functionName, arr);
+    methods.set(s.functionName, arr);
   }
-  for (const [fnName, fnSpecs] of groups) {
-    lines.push(`  describe(${JSON.stringify(fnName)}, () => {`);
-    for (const s of fnSpecs) lines.push(emitProp(s, sourceFile, seed));
-    lines.push(`  });`);
+
+  for (const [className, methods] of byClass) {
+    if (className === undefined) {
+      for (const [fnName, fnSpecs] of methods) {
+        lines.push(`  describe(${JSON.stringify(fnName)}, () => {`);
+        for (const s of fnSpecs) lines.push(emitProp(s, sourceFile, seed, "    "));
+        lines.push(`  });`);
+      }
+    } else {
+      lines.push(`  describe(${JSON.stringify(className)}, () => {`);
+      for (const [methodName, mSpecs] of methods) {
+        lines.push(`    describe(${JSON.stringify(methodName)}, () => {`);
+        for (const s of mSpecs) lines.push(emitProp(s, sourceFile, seed, "      "));
+        lines.push(`    });`);
+      }
+      lines.push(`  });`);
+    }
   }
+
   lines.push(`});`);
   lines.push("");
   return lines.join("\n");
 }
 
-function emitProp(s: PropertySpec, sourceFile: string, seed: number): string {
+function emitProp(s: PropertySpec, sourceFile: string, seed: number, indent: string): string {
   const arbs = s.binders.map((b) => arbitraryFor(b.domain)).join(", ");
   const vars = s.binders.map((b) => b.varName).join(", ");
   const varNames = s.binders.map((b) => JSON.stringify(b.varName)).join(", ");
   const name = JSON.stringify(s.name);
   const file = JSON.stringify(sourceFile);
-  const fn = JSON.stringify(s.functionName);
+  const fn = JSON.stringify(qualifiedName(s.functionName, s.className, s.isStatic));
   const errMsg = JSON.stringify(`property '${s.name}' did not evaluate to a boolean`);
   const reporter = `(d) => __pabstReport(${file}, ${fn}, ${name}, [${varNames}], d)`;
   const params = `{ seed: ${seed}, reporter: ${reporter} }`;
   const out: string[] = [];
-  out.push(`    test.prop([${arbs}], ${params})(${name}, (${vars}) => {`);
-  for (const p of s.preconditions) out.push(`      fc.pre(${p});`);
-  out.push(`      const __r = (${s.body});`);
-  out.push(`      if (typeof __r !== "boolean") throw new Error(${errMsg});`);
-  out.push(`      return __r;`);
-  out.push(`    });`);
+  out.push(`${indent}test.prop([${arbs}], ${params})(${name}, (${vars}) => {`);
+  for (const p of s.preconditions) out.push(`${indent}  fc.pre(${p});`);
+  out.push(`${indent}  const __r = (${s.body});`);
+  out.push(`${indent}  if (typeof __r !== "boolean") throw new Error(${errMsg});`);
+  out.push(`${indent}  return __r;`);
+  out.push(`${indent}});`);
   return out.join("\n");
 }

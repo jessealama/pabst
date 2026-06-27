@@ -20,3 +20,21 @@ describe("buildSpecs", () => {
     expect(s.location.line).toBeGreaterThan(0);
   });
 });
+
+const CLASS_OK = new URL("./fixtures/extract/class-ok.ts", import.meta.url).pathname;
+
+describe("buildSpecs — class methods", () => {
+  it("carries className and isStatic onto the spec", () => {
+    const specs = buildSpecs(CLASS_OK);
+    const inc = specs.find((s) => s.functionName === "inc")!;
+    expect(inc.className).toBe("Counter");
+    expect(inc.isStatic).toBe(false);
+
+    const of = specs.find((s) => s.functionName === "of")!;
+    expect(of.className).toBe("Counter");
+    expect(of.isStatic).toBe(true);
+
+    const bump = specs.find((s) => s.functionName === "bump")!;
+    expect(bump.className).toBeUndefined();
+  });
+});

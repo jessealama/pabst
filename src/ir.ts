@@ -8,6 +8,10 @@ export interface Binder {
 export interface PropertySpec {
   name: string;
   functionName: string;
+  /** Set when the property lives on a class method. */
+  className?: string;
+  /** Meaningful only when className is set: true for a static method. */
+  isStatic?: boolean;
   binders: Binder[];
   /** Desugared boolean expression, ready to drop into a predicate. */
   body: string;
