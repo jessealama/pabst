@@ -19,6 +19,8 @@ export function buildSpecs(file: string): PropertySpec[] {
     specs.push({
       name: a.propertyName,
       functionName: a.functionName,
+      className: a.className,
+      isStatic: a.isStatic,
       binders,
       body: desugaredBody,
       preconditions,
