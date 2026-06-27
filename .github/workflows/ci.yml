@@ -35,3 +35,27 @@ jobs:
 
       - name: End-to-end tests
         run: npx vitest run tests/e2e.test.ts
+
+  coverage:
+    runs-on: ubuntu-latest
+    name: Coverage
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Pure gate: --coverage.thresholds.autoUpdate=false stops CI from
+      # rewriting the seeded thresholds in vitest.config.ts. The ratchet
+      # (bumping the numbers up) happens on local runs; CI only enforces.
+      - name: Coverage gate
+        run: npx vitest run --coverage --coverage.thresholds.autoUpdate=false
