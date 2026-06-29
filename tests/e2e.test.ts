@@ -17,6 +17,7 @@ const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
 const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts");
 const parseRoundTripSrc = path.join(root, "tests/fixtures/e2e/parse-round-trip.ts");
 const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
+const exhaustedSrc = path.join(root, "tests/fixtures/e2e/precondition-exhausted.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -156,5 +157,16 @@ describe("end-to-end", () => {
     expect(issues[0]).toMatchObject({ property: "nonNegativeRoot", kind: "threw" });
     expect(issues[0]!.error).toContain("negative");
     expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+  });
+
+  it("an unsatisfiable precondition is reported as kind 'exhausted'", { timeout: 30000 }, () => {
+    const [r] = generate([exhaustedSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "unsatisfiable", kind: "exhausted" });
+    expect(issues[0]!.counterexample).toBeUndefined();
   });
 });
