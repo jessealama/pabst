@@ -12,6 +12,12 @@ const failSrc = path.join(root, "tests/fixtures/e2e/fail.ts");
 const classPassSrc = path.join(root, "tests/fixtures/e2e/class-pass.ts");
 const classFailSrc = path.join(root, "tests/fixtures/e2e/class-fail.ts");
 const nearMissSrc = path.join(root, "tests/fixtures/e2e/near-miss.ts");
+const stringLawsSrc = path.join(root, "tests/fixtures/e2e/string-laws.ts");
+const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
+const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts");
+const parseRoundTripSrc = path.join(root, "tests/fixtures/e2e/parse-round-trip.ts");
+const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
+const exhaustedSrc = path.join(root, "tests/fixtures/e2e/precondition-exhausted.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -101,5 +107,66 @@ describe("end-to-end", () => {
       kind: "falsified",
       counterexample: { x: 0 },
     });
+  });
+
+  it("README string laws (contains) pass vitest", { timeout: 30000 }, () => {
+    const [r] = generate([stringLawsSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).toBe(0);
+    expect(issues).toEqual([]);
+  });
+
+  it("Number(String(x)) round-trips over int", { timeout: 30000 }, () => {
+    const [r] = generate([intRoundTripSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).toBe(0);
+    expect(issues).toEqual([]);
+  });
+
+  it("float addition is NOT associative (falsified)", { timeout: 30000 }, () => {
+    const [r] = generate([floatAssocSrc], ".pabst", 1);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "associative", kind: "falsified" });
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x", "y", "z"]);
+  });
+
+  it("parseInt is NOT the inverse of String over doubles (falsified)", { timeout: 30000 }, () => {
+    const [r] = generate([parseRoundTripSrc], ".pabst", 3);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "parseIntInverts", kind: "falsified" });
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+  });
+
+  it("a property whose body throws is reported as kind 'threw'", { timeout: 30000 }, () => {
+    const [r] = generate([safeSqrtSrc], ".pabst", 3);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "nonNegativeRoot", kind: "threw" });
+    expect(issues[0]!.error).toContain("negative");
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+  });
+
+  it("an unsatisfiable precondition is reported as kind 'exhausted'", { timeout: 30000 }, () => {
+    const [r] = generate([exhaustedSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "unsatisfiable", kind: "exhausted" });
+    expect(issues[0]!.counterexample).toBeUndefined();
   });
 });
