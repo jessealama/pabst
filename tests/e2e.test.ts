@@ -14,6 +14,7 @@ const classFailSrc = path.join(root, "tests/fixtures/e2e/class-fail.ts");
 const nearMissSrc = path.join(root, "tests/fixtures/e2e/near-miss.ts");
 const stringLawsSrc = path.join(root, "tests/fixtures/e2e/string-laws.ts");
 const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
+const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -119,5 +120,16 @@ describe("end-to-end", () => {
     const { status, issues } = runVitest(r!.outFile);
     expect(status).toBe(0);
     expect(issues).toEqual([]);
+  });
+
+  it("float addition is NOT associative (falsified)", { timeout: 30000 }, () => {
+    const [r] = generate([floatAssocSrc], ".pabst", 1);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "associative", kind: "falsified" });
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x", "y", "z"]);
   });
 });
