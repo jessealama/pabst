@@ -16,6 +16,7 @@ const stringLawsSrc = path.join(root, "tests/fixtures/e2e/string-laws.ts");
 const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
 const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts");
 const parseRoundTripSrc = path.join(root, "tests/fixtures/e2e/parse-round-trip.ts");
+const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -142,6 +143,18 @@ describe("end-to-end", () => {
     expect(issues).toHaveLength(1);
     expectValidIssue(issues[0]);
     expect(issues[0]).toMatchObject({ property: "parseIntInverts", kind: "falsified" });
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+  });
+
+  it("a property whose body throws is reported as kind 'threw'", { timeout: 30000 }, () => {
+    const [r] = generate([safeSqrtSrc], ".pabst", 3);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "nonNegativeRoot", kind: "threw" });
+    expect(issues[0]!.error).toContain("negative");
     expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
   });
 });
