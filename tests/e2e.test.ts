@@ -15,6 +15,7 @@ const nearMissSrc = path.join(root, "tests/fixtures/e2e/near-miss.ts");
 const stringLawsSrc = path.join(root, "tests/fixtures/e2e/string-laws.ts");
 const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
 const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts");
+const parseRoundTripSrc = path.join(root, "tests/fixtures/e2e/parse-round-trip.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -131,5 +132,16 @@ describe("end-to-end", () => {
     expectValidIssue(issues[0]);
     expect(issues[0]).toMatchObject({ property: "associative", kind: "falsified" });
     expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x", "y", "z"]);
+  });
+
+  it("parseInt is NOT the inverse of String over doubles (falsified)", { timeout: 30000 }, () => {
+    const [r] = generate([parseRoundTripSrc], ".pabst", 3);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).not.toBe(0);
+    expect(issues).toHaveLength(1);
+    expectValidIssue(issues[0]);
+    expect(issues[0]).toMatchObject({ property: "parseIntInverts", kind: "falsified" });
+    expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
   });
 });
