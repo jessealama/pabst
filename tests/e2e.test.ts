@@ -13,6 +13,7 @@ const classPassSrc = path.join(root, "tests/fixtures/e2e/class-pass.ts");
 const classFailSrc = path.join(root, "tests/fixtures/e2e/class-fail.ts");
 const nearMissSrc = path.join(root, "tests/fixtures/e2e/near-miss.ts");
 const stringLawsSrc = path.join(root, "tests/fixtures/e2e/string-laws.ts");
+const intRoundTripSrc = path.join(root, "tests/fixtures/e2e/int-round-trip.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -106,6 +107,14 @@ describe("end-to-end", () => {
 
   it("README string laws (contains) pass vitest", { timeout: 30000 }, () => {
     const [r] = generate([stringLawsSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(status).toBe(0);
+    expect(issues).toEqual([]);
+  });
+
+  it("Number(String(x)) round-trips over int", { timeout: 30000 }, () => {
+    const [r] = generate([intRoundTripSrc]);
     expect(r).toBeDefined();
     const { status, issues } = runVitest(r!.outFile);
     expect(status).toBe(0);
