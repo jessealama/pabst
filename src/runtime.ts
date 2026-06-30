@@ -27,6 +27,22 @@ function throwIssue(issue: Issue): never {
 }
 
 /**
+ * Assert that a property atom evaluated to a genuine boolean (no truthiness
+ * coercion), returning it so it composes inside lowered boolean expressions.
+ * Throwing here surfaces as a `threw` issue whose message names the atom.
+ */
+export function bool(v: unknown, expr: string): boolean {
+  if (v !== true && v !== false) {
+    const shown =
+      typeof v === "string" ? JSON.stringify(v)
+      : typeof v === "bigint" ? `${v}n`
+      : String(v);
+    throw new Error(`atom ${JSON.stringify(expr)} evaluated to ${shown}, not a boolean`);
+  }
+  return v;
+}
+
+/**
  * Reporter used by generated property tests. fast-check invokes this instead of
  * its default throw, so it is solely responsible for failing the test — it must
  * throw on `d.failed`. On failure it throws an Error whose message is a
