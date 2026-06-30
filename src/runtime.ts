@@ -63,3 +63,6 @@ export function report(
   }
   throwIssue({ ...base, kind: "falsified", counterexample });
 }
+
+/** Logical implication, provided to property bodies as a builtin (`!p || q`). */
+export const implies = (p: boolean, q: boolean): boolean => !p || q;

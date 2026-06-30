@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { report } from "../src/runtime.js";
+import { report, implies } from "../src/runtime.js";
 import { parseIssue, type Issue } from "../src/issue.js";
 
 function thrownIssue(fn: () => void): Issue {
@@ -92,5 +92,14 @@ describe("runtime report", () => {
       }),
     );
     expect(typeof issue.counterexample!.d).toBe("string");
+  });
+});
+
+describe("implies", () => {
+  it("is false only when the antecedent holds and the consequent fails", () => {
+    expect(implies(true, false)).toBe(false);
+    expect(implies(true, true)).toBe(true);
+    expect(implies(false, false)).toBe(true);
+    expect(implies(false, true)).toBe(true);
   });
 });
