@@ -40,6 +40,22 @@ describe("lexFormula — ASCII fallbacks", () => {
   });
 });
 
+describe("lexFormula — regex and slash fallbacks", () => {
+  it("merges /\\ into and, \\/ into or", () => {
+    expect(kinds("a /\\ b")).toEqual(["js", "and", "js"]);
+    expect(kinds("a \\/ b")).toEqual(["js", "or", "js"]);
+  });
+  it("keeps a regex literal as a single js token (does not see /\\ inside it)", () => {
+    const t = lexFormula("/\\d+/.test(s)");
+    expect(t[0]!.kind).toBe("js");
+    expect(t[0]!.text).toBe("/\\d+/");
+    expect(kinds("/\\d+/.test(s)")).toEqual(["js", "js", "js", "open", "js", "close"]);
+  });
+  it("does not treat division as a regex", () => {
+    expect(texts("a / b")).toEqual(["a", "/", "b"]);
+  });
+});
+
 describe("lexFormula — rejected quantifiers", () => {
   it("rejects ∃ / exists with a teaching error", () => {
     expect(() => lexFormula("∃ x, p(x)")).toThrow(/existential quantifiers .* not supported/i);
