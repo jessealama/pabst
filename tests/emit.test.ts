@@ -31,10 +31,10 @@ describe("emit", () => {
     expect(out).toContain('test.prop([fc.integer(), fc.double()], { seed: 42, reporter: (d) => __pabstReport("foo.ts", "foo", "nonzero", ["x", "y"], d) })("nonzero", (x, y) => {');
   });
 
-  it("lifts preconditions, checks boolean, returns the body", () => {
+  it("lifts preconditions and returns the body without a redundant typeof guard", () => {
     expect(out).toContain("fc.pre(Math.isInteger(y));");
     expect(out).toContain("const __r = (foo(x, y) !== 0);");
-    expect(out).toContain('if (typeof __r !== "boolean") throw new Error("property \'nonzero\' did not evaluate to a boolean");');
+    expect(out).not.toContain('typeof __r !== "boolean"');
     expect(out).toContain("return __r;");
   });
 
@@ -43,7 +43,7 @@ describe("emit", () => {
   });
 
   it("imports the reporter from the runtime library once", () => {
-    expect(out).toContain('import { report as __pabstReport } from "pabst/runtime";');
+    expect(out).toContain('import { report as __pabstReport, bool as __bool } from "pabst/runtime";');
     // no inline copy of the helper
     expect(out).not.toContain("function __pabstReport(");
     // a single import, no matter how many properties

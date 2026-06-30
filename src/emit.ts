@@ -16,7 +16,7 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
   const lines: string[] = [];
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
-  lines.push(`import { report as __pabstReport } from "pabst/runtime";`);
+  lines.push(`import { report as __pabstReport, bool as __bool } from "pabst/runtime";`);
   lines.push(`import * as __M from "${rel}";`);
   if (allExports.length > 0) lines.push(`const { ${allExports.join(", ")} } = __M;`);
   lines.push("");
@@ -65,14 +65,12 @@ function emitProp(s: PropertySpec, sourceFile: string, seed: number, indent: str
   const name = JSON.stringify(s.name);
   const file = JSON.stringify(sourceFile);
   const fn = JSON.stringify(qualifiedName(s.functionName, s.className, s.isStatic));
-  const errMsg = JSON.stringify(`property '${s.name}' did not evaluate to a boolean`);
   const reporter = `(d) => __pabstReport(${file}, ${fn}, ${name}, [${varNames}], d)`;
   const params = `{ seed: ${seed}, reporter: ${reporter} }`;
   const out: string[] = [];
   out.push(`${indent}test.prop([${arbs}], ${params})(${name}, (${vars}) => {`);
   for (const p of s.preconditions) out.push(`${indent}  fc.pre(${p});`);
   out.push(`${indent}  const __r = (${s.body});`);
-  out.push(`${indent}  if (typeof __r !== "boolean") throw new Error(${errMsg});`);
   out.push(`${indent}  return __r;`);
   out.push(`${indent}});`);
   return out.join("\n");
