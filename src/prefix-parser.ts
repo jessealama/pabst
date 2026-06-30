@@ -9,6 +9,13 @@ export interface ParsedPrefix {
 const FORALL = /^\s*(?:forall|∀)\s*/;
 
 export function parsePrefix(formula: string): ParsedPrefix {
+  if (/^\s*(?:∃|exists\b)/.test(formula)) {
+    throw new Error(
+      "existential quantifiers (∃ / exists) are not supported: property-based " +
+      "testing samples inputs, so it can refute ∀ with a counterexample but cannot " +
+      "soundly confirm ∃ (a bounded/exhaustive mode would be needed)",
+    );
+  }
   const m = FORALL.exec(formula);
   if (!m) {
     throw new Error(`expected 'forall' (or ∀) at start of property: ${formula.trim().slice(0, 60)}`);

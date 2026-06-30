@@ -50,3 +50,10 @@ describe("parsePrefix", () => {
     expect(() => parsePrefix("forall , x === x")).toThrow(/binder group/);
   });
 });
+
+describe("parsePrefix — existential", () => {
+  it("rejects a leading ∃ / exists with a teaching error", () => {
+    expect(() => parsePrefix("∃ (x: int), p(x)")).toThrow(/existential quantifiers .* not supported/i);
+    expect(() => parsePrefix("exists (x: int), p(x)")).toThrow(/existential quantifiers .* not supported/i);
+  });
+});
