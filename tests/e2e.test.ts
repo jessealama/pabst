@@ -174,6 +174,8 @@ describe("end-to-end", () => {
 });
 
 describe("e2e — math-y connectives", () => {
+  afterAll(clean);
+
   it("passes a De Morgan biconditional and a guarded implication", { timeout: 30000 }, () => {
     clean();
     const [res] = generate([connectivesSrc], ".pabst", 1234);

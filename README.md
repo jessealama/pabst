@@ -61,19 +61,38 @@ Each issue records where the property lived and why it failed:
 The process exits `0` when `issues` is empty, `1` when there is at least one
 issue, and `2` on usage errors.
 
-## Grammar (MVP)
+## Grammar
 
-- **Quantifier:** `forall` / `∀` only, one-or-more binder groups, then a comma, then a
-  JS boolean body. Lean-style grouping `(x y: int)` supported.
-- **Generation domains:** `int`, `nat`, `number`, `boolean`, `string`, `bigint`. The
-  binder domain drives generation, decoupled from the function's TS parameter types.
-- **Implication:** `==>` / `->` / `→`. Top-level antecedents become `fc.pre(...)`
-  (discarded cases, QuickCheck-style); arrows nested inside parentheses become
-  `!(P) || (Q)`.
-- **Scoping:** every symbol a property references must be `export`ed from its module
-  (the usual "you import what you test" rule). Unknown references are a hard error.
-- **Evaluation:** the body must evaluate to a boolean — `true` passes, `false` or a
-  thrown error is a counterexample, and a non-boolean result is a distinct error.
+A property is a universally quantified formula in pabst's **logic surface**.
+Glyphs are canonical; ASCII fallbacks are accepted.
+
+```ts
+/** @ensures{guarded} forall (x: int),
+ *    isPrime(x) ∧ x > 2 → isOdd(x) */
+```
+
+- **Quantifier:** `forall` / `∀`, one-or-more binder groups, then a comma, then
+  the body. Lean-style grouping `(x y: int)` is supported. Existential `∃` /
+  `exists` is intentionally rejected (PBT cannot soundly confirm existence).
+- **Domains:** `int`, `nat`, `number`, `boolean`, `string`, `bigint`.
+- **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
+  Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
+  Negation `¬` is glyph-only.
+- **Atoms are JavaScript** and must be genuine booleans — every atom is checked
+  at runtime (`5 ∧ true` is an error, not a coercion). You may **not** use JS
+  `&&`/`||`/`!` at an atom's top level — use the glyphs. They remain legal
+  *inside* a leaf (e.g. a callback `xs.every(x => x > 0 && x < 10)`).
+- **Implication discard:** a **top-level** `→`'s antecedents become `fc.pre(...)`
+  (QuickCheck-style discarded cases, reported as `exhausted` if too many skip);
+  a **parenthesised** `→` is ordinary material implication `¬P ∨ Q`.
+- **Biconditional** `↔` is non-associative (parenthesise chains) and is *not* a
+  discard — it lowers to boolean equality.
+- **Scoping:** every symbol an atom references must be `export`ed from its module.
+
+pabst evaluates properties in a free, left-sequential, three-valued logic
+(McCarthy / short-circuit logic): `∧`/`∨`/`→` short-circuit left-to-right, and
+an atom that throws is the third value. The `→` discard is a sampling control,
+not a truth value; `∀` is a sampled (bounded) quantifier.
 
 Each `@ensures{name}` becomes one issue (keyed by file, function, and property
 name) if it fails. Generated files land in a gitignored `.pabst/` directory
