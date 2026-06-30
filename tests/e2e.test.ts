@@ -18,6 +18,8 @@ const floatAssocSrc = path.join(root, "tests/fixtures/e2e/float-associativity.ts
 const parseRoundTripSrc = path.join(root, "tests/fixtures/e2e/parse-round-trip.ts");
 const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
 const exhaustedSrc = path.join(root, "tests/fixtures/e2e/precondition-exhausted.ts");
+const connectivesSrc = path.join(root, "tests/fixtures/e2e/connectives.ts");
+const atomNotBoolSrc = path.join(root, "tests/fixtures/e2e/atom-not-boolean.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -168,5 +170,25 @@ describe("end-to-end", () => {
     expectValidIssue(issues[0]);
     expect(issues[0]).toMatchObject({ property: "unsatisfiable", kind: "exhausted" });
     expect(issues[0]!.counterexample).toBeUndefined();
+  });
+});
+
+describe("e2e — math-y connectives", () => {
+  it("passes a De Morgan biconditional and a guarded implication", { timeout: 30000 }, () => {
+    clean();
+    const [res] = generate([connectivesSrc], ".pabst", 1234);
+    const { status, issues } = runVitest(res!.outFile);
+    expect(issues).toEqual([]);
+    expect(status).toBe(0);
+  });
+
+  it("reports a threw issue naming a non-boolean atom", { timeout: 30000 }, () => {
+    clean();
+    const [res] = generate([atomNotBoolSrc], ".pabst", 1234);
+    const { issues } = runVitest(res!.outFile);
+    const issue = issues.find((i) => i?.property === "notBool");
+    expect(issue?.kind).toBe("threw");
+    expect(issue?.error).toMatch(/atom "addOne\(x\)" evaluated to .*not a boolean/);
+    expectValidIssue(issue);
   });
 });
