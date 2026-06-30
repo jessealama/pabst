@@ -43,7 +43,7 @@ describe("emit", () => {
   });
 
   it("imports the reporter from the runtime library once", () => {
-    expect(out).toContain('import { report as __pabstReport } from "pabst/runtime";');
+    expect(out).toContain('import { report as __pabstReport, implies } from "pabst/runtime";');
     // no inline copy of the helper
     expect(out).not.toContain("function __pabstReport(");
     // a single import, no matter how many properties

@@ -16,7 +16,7 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
   const lines: string[] = [];
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
-  lines.push(`import { report as __pabstReport } from "pabst/runtime";`);
+  lines.push(`import { report as __pabstReport, implies } from "pabst/runtime";`);
   lines.push(`import * as __M from "${rel}";`);
   if (allExports.length > 0) lines.push(`const { ${allExports.join(", ")} } = __M;`);
   lines.push("");
