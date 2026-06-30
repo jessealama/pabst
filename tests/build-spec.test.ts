@@ -14,8 +14,8 @@ describe("buildSpecs", () => {
       { varName: "x", domain: "int" },
       { varName: "y", domain: "number" },
     ]);
-    expect(s.preconditions).toEqual(["Math.isInteger(y)"]);
-    expect(s.body).toBe("foo(x, y) !== 0");
+    expect(s.preconditions).toEqual(['__bool(Math.isInteger(y), "Math.isInteger(y)")']);
+    expect(s.body).toBe('__bool(foo(x, y) !== 0, "foo(x, y) !== 0")');
     expect(s.freeExports).toEqual(["foo"]);
     expect(s.location.line).toBeGreaterThan(0);
   });

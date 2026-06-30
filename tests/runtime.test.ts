@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { report } from "../src/runtime.js";
+import { report, bool } from "../src/runtime.js";
 import { parseIssue, type Issue } from "../src/issue.js";
 
 function thrownIssue(fn: () => void): Issue {
@@ -92,5 +92,22 @@ describe("runtime report", () => {
       }),
     );
     expect(typeof issue.counterexample!.d).toBe("string");
+  });
+});
+
+describe("bool — per-atom boolean enforcement", () => {
+  it("returns true/false unchanged", () => {
+    expect(bool(true, "p(x)")).toBe(true);
+    expect(bool(false, "p(x)")).toBe(false);
+  });
+
+  it("throws naming the atom and the non-boolean value", () => {
+    expect(() => bool(5, "f(x)")).toThrow(/atom "f\(x\)" evaluated to 5, not a boolean/);
+    expect(() => bool(undefined, "g()")).toThrow(/atom "g\(\)" evaluated to undefined, not a boolean/);
+  });
+
+  it("does not coerce truthy/falsy values", () => {
+    expect(() => bool(0, "n")).toThrow(/not a boolean/);
+    expect(() => bool("", "s")).toThrow(/not a boolean/);
   });
 });
