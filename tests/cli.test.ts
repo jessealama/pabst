@@ -35,6 +35,10 @@ describe("cli main", () => {
     expect(main(["gen"])).toBe(2);
   });
 
+  it("returns 2 when no patterns match a .ts file", () => {
+    expect(main(["gen", "zzz-no-such-file-*.ts"])).toBe(2);
+  });
+
   it("returns 2 on a non-integer --seed", () => {
     expect(main(["gen", "--seed", "4.2", "baz.ts"])).toBe(2);
   });

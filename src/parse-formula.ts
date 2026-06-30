@@ -17,6 +17,7 @@ const VALID_DOMAINS = "int, nat, number, boolean, string, bigint";
 export function parseFormula(formula: string): ParsedFormula {
   const sf = ts.createSourceFile("__formula.ts", `(${formula});`, ts.ScriptTarget.Latest, true);
   const stmt = sf.statements[0];
+  /* v8 ignore next 3 -- the `(...)` wrapper always parses to an ExpressionStatement; defensive guard only */
   if (!stmt || !ts.isExpressionStatement(stmt)) {
     throw new Error(`property must be an arrow function '(x: domain, ...) => body': ${formula.trim().slice(0, 60)}`);
   }
