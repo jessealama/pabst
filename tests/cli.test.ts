@@ -11,7 +11,7 @@ describe("cli main", () => {
   beforeAll(() => {
     fs.writeFileSync(
       path.join(dir, "baz.ts"),
-      `/** @ensures{pos} forall (n: nat), baz(n) >= 0 */\nexport function baz(n: number): number { return n; }\n`,
+      `/** @ensures{pos} (n: nat) => baz(n) >= 0 */\nexport function baz(n: number): number { return n; }\n`,
       "utf8",
     );
     process.chdir(dir);

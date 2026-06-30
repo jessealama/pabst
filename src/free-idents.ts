@@ -6,20 +6,23 @@ export const GLOBALS = new Set<string>([
   "Infinity", "Symbol", "Map", "Set", "RegExp", "Error", "console",
 ]);
 
-export function freeIdentifiers(expr: string): Set<string> {
-  const sf = ts.createSourceFile("__expr.ts", `(${expr});`, ts.ScriptTarget.Latest, true);
+/** pabst-provided builtins available to property bodies (never module exports). */
+export const BUILTINS = new Set<string>(["implies"]);
+
+/** Collect free identifiers from an already-parsed expression node. */
+export function freeIdentifiers(node: ts.Node): Set<string> {
   const found = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node)) {
-      const p = node.parent;
-      const isPropName = ts.isPropertyAccessExpression(p) && p.name === node;
-      const isQualified = ts.isQualifiedName(p) && p.right === node;
-      const isObjKey = ts.isPropertyAssignment(p) && p.name === node;
-      if (!isPropName && !isQualified && !isObjKey) found.add(node.text);
+  const visit = (n: ts.Node): void => {
+    if (ts.isIdentifier(n)) {
+      const p = n.parent;
+      const isPropName = ts.isPropertyAccessExpression(p) && p.name === n;
+      const isQualified = ts.isQualifiedName(p) && p.right === n;
+      const isObjKey = ts.isPropertyAssignment(p) && p.name === n;
+      if (!isPropName && !isQualified && !isObjKey) found.add(n.text);
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(n, visit);
   };
-  visit(sf);
+  visit(node);
   return found;
 }
 
@@ -38,6 +41,7 @@ export function classify(
   for (const id of idents) {
     if (boundVars.has(id)) continue;
     if (GLOBALS.has(id)) continue;
+    if (BUILTINS.has(id)) continue;
     if (moduleExports.has(id)) { freeExports.push(id); continue; }
     throw new Error(`property '${propertyName}' references '${id}', which is not exported from ${moduleFile}`);
   }

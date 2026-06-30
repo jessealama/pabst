@@ -1,5 +1,5 @@
-/** @ensures{nonzero} forall (x: int) (y: number),
- *    Math.isInteger(y) ==> foo(x, y) !== 0 */
+/** @ensures{nonzero} (x: int, y: number) =>
+ *    { pre(Math.isInteger(y)); return foo(x, y) !== 0; } */
 export function foo(x: bigint, y: number): number {
   return Number(x) + (y === 0 ? 1 : y);
 }

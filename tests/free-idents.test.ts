@@ -1,21 +1,25 @@
 import { describe, it, expect } from "vitest";
+import ts from "typescript";
 import { freeIdentifiers, classify } from "../src/free-idents.js";
+
+function exprNode(src: string): ts.Node {
+  const sf = ts.createSourceFile("__t.ts", `(${src});`, ts.ScriptTarget.Latest, true);
+  return (sf.statements[0] as ts.ExpressionStatement).expression;
+}
 
 describe("freeIdentifiers", () => {
   it("collects references but not property names", () => {
-    const ids = freeIdentifiers("Math.isInteger(y) && foo(x, y) !== 0");
+    const ids = freeIdentifiers(exprNode("Math.isInteger(y) && foo(x, y) !== 0"));
     expect([...ids].sort()).toEqual(["Math", "foo", "x", "y"]);
   });
 
   it("excludes object-literal keys but keeps value refs", () => {
-    const ids = freeIdentifiers("({ a: x }).a === x");
+    const ids = freeIdentifiers(exprNode("({ a: x }).a === x"));
     expect([...ids].sort()).toEqual(["x"]);
   });
 
   it("excludes the right side of a qualified type name", () => {
-    // In `x as Foo.Bar`, `Bar` is the right of a qualified name and must be
-    // dropped; `Foo` (the left) and `x` remain.
-    const ids = freeIdentifiers("x as Foo.Bar");
+    const ids = freeIdentifiers(exprNode("x as Foo.Bar"));
     expect([...ids].sort()).toEqual(["Foo", "x"]);
   });
 });
@@ -29,10 +33,15 @@ describe("classify", () => {
     expect(classify(ids, bound, exports, "nonzero", "foo.ts")).toEqual({ freeExports: ["foo"] });
   });
 
+  it("treats implies as a builtin, not a required export", () => {
+    const ids = new Set(["x", "implies", "foo"]);
+    expect(classify(ids, bound, exports, "nonzero", "foo.ts")).toEqual({ freeExports: ["foo"] });
+  });
+
   it("throws on an unexported, non-global, non-bound identifier", () => {
     const ids = new Set(["x", "bar"]);
     expect(() => classify(ids, bound, exports, "nonzero", "foo.ts")).toThrow(
-      "property 'nonzero' references 'bar', which is not exported from foo.ts"
+      "property 'nonzero' references 'bar', which is not exported from foo.ts",
     );
   });
 });

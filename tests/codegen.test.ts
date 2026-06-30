@@ -11,7 +11,7 @@ describe("generate", () => {
   beforeAll(() => {
     fs.writeFileSync(
       path.join(dir, "bar.ts"),
-      `/** @ensures{pos} forall (n: nat), bar(n) >= 0 */\nexport function bar(n: number): number { return n; }\n`,
+      `/** @ensures{pos} (n: nat) => bar(n) >= 0 */\nexport function bar(n: number): number { return n; }\n`,
       "utf8",
     );
     fs.writeFileSync(
