@@ -42,7 +42,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepublishOnly": "npm run build && npm test",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"

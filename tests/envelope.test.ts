@@ -41,7 +41,7 @@ describe("collectIssues", () => {
 
   it("tolerates missing testResults and assertionResults arrays", () => {
     expect(collectIssues({} as VitestJson)).toEqual([]);
-    expect(collectIssues({ testResults: [{} as never] } as VitestJson)).toEqual([]);
+    expect(collectIssues({ testResults: [{}] } as unknown as VitestJson)).toEqual([]);
   });
 
   it("ignores a failed assertion that carries no failure message", () => {

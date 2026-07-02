@@ -1,20 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { buildSpecs } from "../src/build-spec.js";
 
-const FIXTURE = new URL("./fixtures/foo.ts", import.meta.url).pathname;
+const FIXTURE = new URL("./fixtures/e2e/readme-example.ts", import.meta.url).pathname;
 
 describe("buildSpecs", () => {
-  it("produces a PropertySpec for the worked example", () => {
+  it("produces a PropertySpec for the README's worked example", () => {
     const specs = buildSpecs(FIXTURE);
     expect(specs).toHaveLength(1);
     const s = specs[0]!;
     expect(s.name).toBe("nonzero");
     expect(s.functionName).toBe("foo");
     expect(s.binders).toEqual([
-      { varName: "x", domain: "int" },
+      { varName: "x", domain: "bigint" },
       { varName: "y", domain: "number" },
     ]);
-    expect(s.preconditions).toEqual(['__bool(Math.isInteger(y), "Math.isInteger(y)")']);
+    expect(s.preconditions).toEqual(['__bool(Number.isInteger(y), "Number.isInteger(y)")']);
     expect(s.body).toBe('__bool(foo(x, y) !== 0, "foo(x, y) !== 0")');
     expect(s.freeExports).toEqual(["foo"]);
     expect(s.location.line).toBeGreaterThan(0);

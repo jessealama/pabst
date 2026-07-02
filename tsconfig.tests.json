@@ -1,0 +1,12 @@
+// Typecheck-only pass over the tests and their fixtures. Vitest transpiles
+// with esbuild and never typechecks, so without this a broken fixture (a
+// nonexistent API, a body that doesn't return) sits in the repo undetected.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "rootDir": "."
+  },
+  "include": ["src", "tests"]
+}

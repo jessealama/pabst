@@ -30,6 +30,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Vitest transpiles without typechecking, so broken test code and
+      # fixtures only surface here.
+      - name: Typecheck tests and fixtures
+        run: npm run typecheck
+
       - name: Unit tests
         run: npx vitest run --exclude '**/e2e.test.ts'
 

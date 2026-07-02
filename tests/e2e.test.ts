@@ -20,6 +20,7 @@ const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
 const exhaustedSrc = path.join(root, "tests/fixtures/e2e/precondition-exhausted.ts");
 const connectivesSrc = path.join(root, "tests/fixtures/e2e/connectives.ts");
 const atomNotBoolSrc = path.join(root, "tests/fixtures/e2e/atom-not-boolean.ts");
+const readmeExampleSrc = path.join(root, "tests/fixtures/e2e/readme-example.ts");
 const genDir = path.join(root, ".pabst/tests/fixtures/e2e");
 
 function clean(): void {
@@ -109,6 +110,21 @@ describe("end-to-end", () => {
       kind: "falsified",
       counterexample: { x: 0 },
     });
+  });
+
+  it("the README front-page example is verbatim on disk and passes", { timeout: 30000 }, () => {
+    const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+    const block = /```ts\n([\s\S]*?)```/.exec(readme)?.[1];
+    expect(block, "README has no ```ts code block").toBeDefined();
+    expect(
+      fs.readFileSync(readmeExampleSrc, "utf8"),
+      "tests/fixtures/e2e/readme-example.ts must be byte-identical to the README's first ts block",
+    ).toBe(block);
+    const [r] = generate([readmeExampleSrc]);
+    expect(r).toBeDefined();
+    const { status, issues } = runVitest(r!.outFile);
+    expect(issues).toEqual([]);
+    expect(status).toBe(0);
   });
 
   it("README string laws (contains) pass vitest", { timeout: 30000 }, () => {

@@ -3,8 +3,8 @@ import { freeIdentifiers, classify } from "../src/free-idents.js";
 
 describe("freeIdentifiers", () => {
   it("collects references but not property names", () => {
-    const ids = freeIdentifiers("Math.isInteger(y) && foo(x, y) !== 0");
-    expect([...ids].sort()).toEqual(["Math", "foo", "x", "y"]);
+    const ids = freeIdentifiers("Number.isInteger(y) && foo(x, y) !== 0");
+    expect([...ids].sort()).toEqual(["Number", "foo", "x", "y"]);
   });
 
   it("excludes object-literal keys but keeps value refs", () => {

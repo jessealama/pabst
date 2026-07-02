@@ -10,7 +10,7 @@ const spec: PropertySpec = {
     { varName: "y", domain: "number" },
   ],
   body: "foo(x, y) !== 0",
-  preconditions: ["Math.isInteger(y)"],
+  preconditions: ["Number.isInteger(y)"],
   freeExports: ["foo"],
   location: { file: "foo.ts", line: 1 },
 };
@@ -32,7 +32,7 @@ describe("emit", () => {
   });
 
   it("lifts preconditions and returns the body without a redundant typeof guard", () => {
-    expect(out).toContain("fc.pre(Math.isInteger(y));");
+    expect(out).toContain("fc.pre(Number.isInteger(y));");
     expect(out).toContain("const __r = (foo(x, y) !== 0);");
     expect(out).not.toContain('typeof __r !== "boolean"');
     expect(out).toContain("return __r;");

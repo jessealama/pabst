@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import { expect } from "vitest";
 
 const schemaPath = new URL("../../schemas/issue.schema.json", import.meta.url).pathname;

@@ -6,9 +6,11 @@ Annotate a function with a quantified property in a JSDoc comment, run one comma
 and get either "cases passed" or a shrunk counterexample.
 
 ```ts
-/** @ensures{nonzero} forall (x: int) (y: number),
- *    Math.isInteger(y) ==> foo(x, y) !== 0 */
-export function foo(x: bigint, y: number): number { /* ... */ }
+/** @ensures{nonzero} forall (x: bigint) (y: number),
+ *    Number.isInteger(y) ==> foo(x, y) !== 0 */
+export function foo(x: bigint, y: number): number {
+  return 2 * (Number(x) + y) + 1;
+}
 ```
 
 ## Usage
