@@ -1,7 +1,23 @@
 {
   "name": "pabst",
-  "version": "0.0.1",
+  "version": "0.5.0",
   "description": "Property-based testing from @ensures annotations, powered by fast-check.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jessealama/pabst.git"
+  },
+  "homepage": "https://github.com/jessealama/pabst#readme",
+  "bugs": {
+    "url": "https://github.com/jessealama/pabst/issues"
+  },
+  "keywords": [
+    "property-based-testing",
+    "fast-check",
+    "vitest",
+    "jsdoc",
+    "ensures",
+    "testing"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -26,6 +42,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"

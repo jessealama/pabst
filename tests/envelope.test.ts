@@ -3,7 +3,7 @@ import { buildEnvelope, collectIssues, type VitestJson, type RunMeta } from "../
 import { ISSUE_SENTINEL, type Issue } from "../src/issue.js";
 
 const META: RunMeta = {
-  version: "0.0.1",
+  version: "0.5.0",
   startedAt: "2026-06-26T00:00:00.000Z",
   cwd: "/repo",
   seed: 12345,
@@ -61,7 +61,7 @@ describe("buildEnvelope", () => {
       testResults: [{ assertionResults: [failed(FALSIFIED)] }],
     });
     expect(buildEnvelope(META, json)).toEqual({
-      version: "0.0.1",
+      version: "0.5.0",
       startedAt: "2026-06-26T00:00:00.000Z",
       cwd: "/repo",
       seed: 12345,
