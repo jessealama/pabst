@@ -33,13 +33,17 @@ describe("generate", () => {
     expect(results[0]!.outFile).toBe(path.join(".pabst", "bar.pabst.test.ts"));
     expect(fs.existsSync(results[0]!.outFile)).toBe(true);
     const code = fs.readFileSync(results[0]!.outFile, "utf8");
-    expect(code).toContain('test.prop([fc.nat()], { seed: 7, reporter: (d) => __pabstReport("bar.ts", "bar", "pos", ["n"], d) })("pos"');
+    expect(code).toContain(
+      'test.prop([fc.nat()], { seed: 7, reporter: (d) => __pabstReport("bar.ts", "bar", "pos", ["n"], d) })("pos"',
+    );
     expect(code).toContain("const { bar } = __M;");
   });
 
   it("skips a file with no @ensures annotations", () => {
     const results = generate(["plain.ts"], ".pabst", 7);
     expect(results).toEqual([]);
-    expect(fs.existsSync(path.join(".pabst", "plain.pabst.test.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(".pabst", "plain.pabst.test.ts"))).toBe(
+      false,
+    );
   });
 });

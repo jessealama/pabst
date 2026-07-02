@@ -8,5 +8,7 @@ export function qualifiedName(
   isStatic?: boolean,
 ): string {
   if (className === undefined) return functionName;
-  return isStatic ? `${className}.${functionName}` : `${className}#${functionName}`;
+  return isStatic
+    ? `${className}.${functionName}`
+    : `${className}#${functionName}`;
 }

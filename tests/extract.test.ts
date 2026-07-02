@@ -144,19 +144,27 @@ describe("extract — class methods", () => {
   });
 
   it("throws on @ensures on a non-public method", () => {
-    expect(() => extractFromSource(CLASS_PRIVATE, "class-private.ts")).toThrow(/non-public method 'touch'/);
+    expect(() => extractFromSource(CLASS_PRIVATE, "class-private.ts")).toThrow(
+      /non-public method 'touch'/,
+    );
   });
 
   it("throws on @ensures on an accessor", () => {
-    expect(() => extractFromSource(CLASS_ACCESSOR, "class-accessor.ts")).toThrow(/unsupported member 'value'/);
+    expect(() =>
+      extractFromSource(CLASS_ACCESSOR, "class-accessor.ts"),
+    ).toThrow(/unsupported member 'value'/);
   });
 
   it("throws on @ensures on a method of a non-exported class", () => {
-    expect(() => extractFromSource(CLASS_UNEXPORTED, "class-unexported.ts")).toThrow(/which is not exported/);
+    expect(() =>
+      extractFromSource(CLASS_UNEXPORTED, "class-unexported.ts"),
+    ).toThrow(/which is not exported/);
   });
 
   it("throws on a duplicate qualified property name", () => {
-    expect(() => extractFromSource(CLASS_DUP, "class-dup.ts")).toThrow(/duplicate property name 'p' on method 'Box\.id'/);
+    expect(() => extractFromSource(CLASS_DUP, "class-dup.ts")).toThrow(
+      /duplicate property name 'p' on method 'Box\.id'/,
+    );
   });
 
   it("throws on @ensures on a method of an anonymous class", () => {
@@ -174,7 +182,9 @@ describe("extract — class methods", () => {
   constructor(readonly n: number) {}
 }
 `;
-    expect(() => extractFromSource(src, "ctor.ts")).toThrow(/unsupported member 'constructor'/);
+    expect(() => extractFromSource(src, "ctor.ts")).toThrow(
+      /unsupported member 'constructor'/,
+    );
   });
 
   it("reports a computed-name member as '<computed>' when @ensures sits on it", () => {
@@ -183,7 +193,9 @@ describe("extract — class methods", () => {
   [Symbol.iterator](): number { return 0; }
 }
 `;
-    expect(() => extractFromSource(src, "computed.ts")).toThrow(/unsupported member '<computed>'/);
+    expect(() => extractFromSource(src, "computed.ts")).toThrow(
+      /unsupported member '<computed>'/,
+    );
   });
 });
 
@@ -202,7 +214,10 @@ export { foo, bar };
 describe("extract — variable and re-export forms", () => {
   it("reads @ensures on arrow- and function-expression consts", () => {
     const r = extractFromSource(ARROW_EXPORT, "arrow.ts");
-    expect(r.annotations.map((a) => a.functionName).sort()).toEqual(["bar", "foo"]);
+    expect(r.annotations.map((a) => a.functionName).sort()).toEqual([
+      "bar",
+      "foo",
+    ]);
     expect([...r.exports].sort()).toEqual(["bar", "foo"]);
   });
 

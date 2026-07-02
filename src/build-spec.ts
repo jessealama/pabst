@@ -18,7 +18,13 @@ export function buildSpecs(file: string): PropertySpec[] {
     for (const atom of collectAtoms(ast)) {
       for (const id of freeIdentifiers(atom)) idents.add(id);
     }
-    const { freeExports } = classify(idents, boundVars, exports, a.propertyName, file);
+    const { freeExports } = classify(
+      idents,
+      boundVars,
+      exports,
+      a.propertyName,
+      file,
+    );
     specs.push({
       name: a.propertyName,
       functionName: a.functionName,

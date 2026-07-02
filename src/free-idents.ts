@@ -1,13 +1,37 @@
 import ts from "typescript";
 
 export const GLOBALS = new Set<string>([
-  "Math", "Number", "JSON", "Object", "Array", "String", "Boolean", "BigInt",
-  "Date", "isNaN", "isFinite", "parseInt", "parseFloat", "undefined", "NaN",
-  "Infinity", "Symbol", "Map", "Set", "RegExp", "Error", "console",
+  "Math",
+  "Number",
+  "JSON",
+  "Object",
+  "Array",
+  "String",
+  "Boolean",
+  "BigInt",
+  "Date",
+  "isNaN",
+  "isFinite",
+  "parseInt",
+  "parseFloat",
+  "undefined",
+  "NaN",
+  "Infinity",
+  "Symbol",
+  "Map",
+  "Set",
+  "RegExp",
+  "Error",
+  "console",
 ]);
 
 export function freeIdentifiers(expr: string): Set<string> {
-  const sf = ts.createSourceFile("__expr.ts", `(${expr});`, ts.ScriptTarget.Latest, true);
+  const sf = ts.createSourceFile(
+    "__expr.ts",
+    `(${expr});`,
+    ts.ScriptTarget.Latest,
+    true,
+  );
   const found = new Set<string>();
   const visit = (node: ts.Node): void => {
     if (ts.isIdentifier(node)) {
@@ -38,8 +62,13 @@ export function classify(
   for (const id of idents) {
     if (boundVars.has(id)) continue;
     if (GLOBALS.has(id)) continue;
-    if (moduleExports.has(id)) { freeExports.push(id); continue; }
-    throw new Error(`property '${propertyName}' references '${id}', which is not exported from ${moduleFile}`);
+    if (moduleExports.has(id)) {
+      freeExports.push(id);
+      continue;
+    }
+    throw new Error(
+      `property '${propertyName}' references '${id}', which is not exported from ${moduleFile}`,
+    );
   }
   return { freeExports: [...new Set(freeExports)] };
 }

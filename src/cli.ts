@@ -41,7 +41,9 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     return 2;
   }
 
-  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter((f) => TS_EXT.test(f));
+  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter((f) =>
+    TS_EXT.test(f),
+  );
   if (files.length === 0) {
     console.error("error: no matching .ts files");
     return 2;
@@ -63,7 +65,13 @@ export function main(argv: string[] = process.argv.slice(2)): number {
   // reporter. We assemble our own JSON envelope from it.
   const res = spawnSync(
     "npx",
-    ["vitest", "run", ".pabst", "--reporter=json", `--outputFile=${RESULTS_FILE}`],
+    [
+      "vitest",
+      "run",
+      ".pabst",
+      "--reporter=json",
+      `--outputFile=${RESULTS_FILE}`,
+    ],
     { encoding: "utf8" },
   );
 
@@ -79,11 +87,17 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     return res.status ?? 1;
   }
 
-  const envelope = buildEnvelope({ version, startedAt, cwd, seed, generated }, json);
+  const envelope = buildEnvelope(
+    { version, startedAt, cwd, seed, generated },
+    json,
+  );
   console.log(JSON.stringify(envelope, null, 2));
   return envelope.failed > 0 ? 1 : 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   process.exit(main());
 }

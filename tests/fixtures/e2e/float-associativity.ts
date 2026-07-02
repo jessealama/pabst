@@ -5,5 +5,5 @@
  * @ensures{associative} forall (x y z: number), addAssoc(x, y, z)
  */
 export function addAssoc(a: number, b: number, c: number): boolean {
-  return (a + b) + c === a + (b + c);
+  return a + b + c === a + (b + c);
 }

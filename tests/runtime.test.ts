@@ -65,7 +65,11 @@ describe("runtime report", () => {
 
   it("emits an exhausted issue when there is no counterexample", () => {
     const issue = thrownIssue(() =>
-      report("f.ts", "f", "p", ["x"], { failed: true, counterexample: null, errorInstance: null }),
+      report("f.ts", "f", "p", ["x"], {
+        failed: true,
+        counterexample: null,
+        errorInstance: null,
+      }),
     );
     expect(issue.kind).toBe("exhausted");
     expect(issue.error).toBe("too many skipped runs");
@@ -102,8 +106,12 @@ describe("bool — per-atom boolean enforcement", () => {
   });
 
   it("throws naming the atom and the non-boolean value", () => {
-    expect(() => bool(5, "f(x)")).toThrow(/atom "f\(x\)" evaluated to 5, not a boolean/);
-    expect(() => bool(undefined, "g()")).toThrow(/atom "g\(\)" evaluated to undefined, not a boolean/);
+    expect(() => bool(5, "f(x)")).toThrow(
+      /atom "f\(x\)" evaluated to 5, not a boolean/,
+    );
+    expect(() => bool(undefined, "g()")).toThrow(
+      /atom "g\(\)" evaluated to undefined, not a boolean/,
+    );
   });
 
   it("does not coerce truthy/falsy values", () => {

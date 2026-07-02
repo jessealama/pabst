@@ -12,7 +12,11 @@ export interface GenResult {
   propertyCount: number;
 }
 
-export function generate(files: string[], outRoot = ".pabst", seed: number = randomSeed()): GenResult[] {
+export function generate(
+  files: string[],
+  outRoot = ".pabst",
+  seed: number = randomSeed(),
+): GenResult[] {
   const results: GenResult[] = [];
   for (const file of files) {
     const specs = buildSpecs(file);

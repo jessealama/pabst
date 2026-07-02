@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildSpecs } from "../src/build-spec.js";
 
-const FIXTURE = new URL("./fixtures/e2e/readme-example.ts", import.meta.url).pathname;
+const FIXTURE = new URL("./fixtures/e2e/readme-example.ts", import.meta.url)
+  .pathname;
 
 describe("buildSpecs", () => {
   it("produces a PropertySpec for the README's worked example", () => {
@@ -14,14 +15,17 @@ describe("buildSpecs", () => {
       { varName: "x", domain: "bigint" },
       { varName: "y", domain: "number" },
     ]);
-    expect(s.preconditions).toEqual(['__bool(Number.isInteger(y), "Number.isInteger(y)")']);
+    expect(s.preconditions).toEqual([
+      '__bool(Number.isInteger(y), "Number.isInteger(y)")',
+    ]);
     expect(s.body).toBe('__bool(foo(x, y) !== 0, "foo(x, y) !== 0")');
     expect(s.freeExports).toEqual(["foo"]);
     expect(s.location.line).toBeGreaterThan(0);
   });
 });
 
-const CLASS_OK = new URL("./fixtures/extract/class-ok.ts", import.meta.url).pathname;
+const CLASS_OK = new URL("./fixtures/extract/class-ok.ts", import.meta.url)
+  .pathname;
 
 describe("buildSpecs — class methods", () => {
   it("carries className and isStatic onto the spec", () => {

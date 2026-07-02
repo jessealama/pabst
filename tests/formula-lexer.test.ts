@@ -7,7 +7,15 @@ const texts = (s: string) => lexFormula(s).map((t) => t.text);
 describe("lexFormula — glyphs", () => {
   it("tags ¬ ∧ ∨ → ↔ as connectives and the rest as js", () => {
     expect(kinds("a ∧ b ∨ c → d ↔ e")).toEqual([
-      "js", "and", "js", "or", "js", "implies", "js", "iff", "js",
+      "js",
+      "and",
+      "js",
+      "or",
+      "js",
+      "implies",
+      "js",
+      "iff",
+      "js",
     ]);
   });
   it("tags ¬ as not", () => {
@@ -18,7 +26,14 @@ describe("lexFormula — glyphs", () => {
     expect(texts('s === "a ∧ b"')).toEqual(["s", "===", '"a ∧ b"']);
   });
   it("distinguishes !== from a prefix ! (both are js here)", () => {
-    expect(kinds("f(x) !== 0")).toEqual(["js", "open", "js", "close", "js", "js"]);
+    expect(kinds("f(x) !== 0")).toEqual([
+      "js",
+      "open",
+      "js",
+      "close",
+      "js",
+      "js",
+    ]);
   });
 });
 
@@ -49,7 +64,14 @@ describe("lexFormula — regex and slash fallbacks", () => {
     const t = lexFormula("/\\d+/.test(s)");
     expect(t[0]!.kind).toBe("js");
     expect(t[0]!.text).toBe("/\\d+/");
-    expect(kinds("/\\d+/.test(s)")).toEqual(["js", "js", "js", "open", "js", "close"]);
+    expect(kinds("/\\d+/.test(s)")).toEqual([
+      "js",
+      "js",
+      "js",
+      "open",
+      "js",
+      "close",
+    ]);
   });
   it("does not treat division as a regex", () => {
     expect(texts("a / b")).toEqual(["a", "/", "b"]);
@@ -58,11 +80,19 @@ describe("lexFormula — regex and slash fallbacks", () => {
 
 describe("lexFormula — rejected quantifiers", () => {
   it("rejects ∃ / exists with a teaching error", () => {
-    expect(() => lexFormula("∃ x, p(x)")).toThrow(/existential quantifiers .* not supported/i);
-    expect(() => lexFormula("exists x")).toThrow(/existential quantifiers .* not supported/i);
+    expect(() => lexFormula("∃ x, p(x)")).toThrow(
+      /existential quantifiers .* not supported/i,
+    );
+    expect(() => lexFormula("exists x")).toThrow(
+      /existential quantifiers .* not supported/i,
+    );
   });
   it("rejects a nested ∀ / forall in the body", () => {
-    expect(() => lexFormula("p ∧ ∀ y")).toThrow(/nested quantifiers are not supported/i);
-    expect(() => lexFormula("forall y")).toThrow(/nested quantifiers are not supported/i);
+    expect(() => lexFormula("p ∧ ∀ y")).toThrow(
+      /nested quantifiers are not supported/i,
+    );
+    expect(() => lexFormula("forall y")).toThrow(
+      /nested quantifiers are not supported/i,
+    );
   });
 });

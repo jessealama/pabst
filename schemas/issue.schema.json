@@ -20,7 +20,14 @@
     {
       "title": "threw",
       "additionalProperties": false,
-      "required": ["file", "function", "property", "kind", "counterexample", "error"],
+      "required": [
+        "file",
+        "function",
+        "property",
+        "kind",
+        "counterexample",
+        "error"
+      ],
       "properties": {
         "file": { "type": "string" },
         "function": { "$ref": "#/definitions/functionName" },

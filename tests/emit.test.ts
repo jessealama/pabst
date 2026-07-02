@@ -28,7 +28,9 @@ describe("emit", () => {
   it("emits the describe hierarchy and test.prop with arbitraries", () => {
     expect(out).toContain('describe("pabst", () => {');
     expect(out).toContain('describe("foo", () => {');
-    expect(out).toContain('test.prop([fc.integer(), fc.double()], { seed: 42, reporter: (d) => __pabstReport("foo.ts", "foo", "nonzero", ["x", "y"], d) })("nonzero", (x, y) => {');
+    expect(out).toContain(
+      'test.prop([fc.integer(), fc.double()], { seed: 42, reporter: (d) => __pabstReport("foo.ts", "foo", "nonzero", ["x", "y"], d) })("nonzero", (x, y) => {',
+    );
   });
 
   it("lifts preconditions and returns the body without a redundant typeof guard", () => {
@@ -39,15 +41,24 @@ describe("emit", () => {
   });
 
   it("passes a reporter that names the property and binds the counterexample", () => {
-    expect(out).toContain('test.prop([fc.integer(), fc.double()], { seed: 42, reporter: (d) => __pabstReport("foo.ts", "foo", "nonzero", ["x", "y"], d) })("nonzero", (x, y) => {');
+    expect(out).toContain(
+      'test.prop([fc.integer(), fc.double()], { seed: 42, reporter: (d) => __pabstReport("foo.ts", "foo", "nonzero", ["x", "y"], d) })("nonzero", (x, y) => {',
+    );
   });
 
   it("imports the reporter from the runtime library once", () => {
-    expect(out).toContain('import { report as __pabstReport, bool as __bool } from "pabst/runtime";');
+    expect(out).toContain(
+      'import { report as __pabstReport, bool as __bool } from "pabst/runtime";',
+    );
     // no inline copy of the helper
     expect(out).not.toContain("function __pabstReport(");
     // a single import, no matter how many properties
-    const multi = emit([spec, { ...spec, name: "other" }], "foo.ts", ".pabst/foo.pabst.test.ts", 42);
+    const multi = emit(
+      [spec, { ...spec, name: "other" }],
+      "foo.ts",
+      ".pabst/foo.pabst.test.ts",
+      42,
+    );
     const occurrences = multi.split('from "pabst/runtime"').length - 1;
     expect(occurrences).toBe(1);
   });
@@ -81,32 +92,56 @@ describe("emit — import path and exports", () => {
   it("prefixes a non-relative import specifier with ./", () => {
     // Source sits below the output dir, so path.relative yields a bare
     // 'sub/bar' that must be made explicitly relative.
-    const out = emit([{ ...spec, freeExports: [] }], "sub/bar.ts", "out.pabst.test.ts", 42);
+    const out = emit(
+      [{ ...spec, freeExports: [] }],
+      "sub/bar.ts",
+      "out.pabst.test.ts",
+      42,
+    );
     expect(out).toContain('import * as __M from "./sub/bar";');
   });
 
   it("omits the destructuring line when there are no free exports", () => {
-    const out = emit([{ ...spec, freeExports: [] }], "foo.ts", ".pabst/foo.pabst.test.ts", 42);
+    const out = emit(
+      [{ ...spec, freeExports: [] }],
+      "foo.ts",
+      ".pabst/foo.pabst.test.ts",
+      42,
+    );
     expect(out).not.toContain("} = __M;");
   });
 });
 
 describe("emit — class methods", () => {
   it("nests describe(class) > describe(method) for an instance method", () => {
-    const out = emit([instanceSpec], "counter.ts", ".pabst/counter.pabst.test.ts", 7);
+    const out = emit(
+      [instanceSpec],
+      "counter.ts",
+      ".pabst/counter.pabst.test.ts",
+      7,
+    );
     expect(out).toContain('describe("Counter", () => {');
     expect(out).toContain('describe("inc", () => {');
   });
 
   it("passes the # qualified name to the reporter for an instance method", () => {
-    const out = emit([instanceSpec], "counter.ts", ".pabst/counter.pabst.test.ts", 7);
-    expect(out).toContain('__pabstReport("counter.ts", "Counter#inc", "incAddsOne", ["x"], d)');
+    const out = emit(
+      [instanceSpec],
+      "counter.ts",
+      ".pabst/counter.pabst.test.ts",
+      7,
+    );
+    expect(out).toContain(
+      '__pabstReport("counter.ts", "Counter#inc", "incAddsOne", ["x"], d)',
+    );
   });
 
   it("passes the . qualified name to the reporter for a static method", () => {
     const out = emit([staticSpec], "arith.ts", ".pabst/arith.pabst.test.ts", 7);
     expect(out).toContain('describe("Arith", () => {');
     expect(out).toContain('describe("negate", () => {');
-    expect(out).toContain('__pabstReport("arith.ts", "Arith.negate", "matchesSubtraction", ["x"], d)');
+    expect(out).toContain(
+      '__pabstReport("arith.ts", "Arith.negate", "matchesSubtraction", ["x"], d)',
+    );
   });
 });

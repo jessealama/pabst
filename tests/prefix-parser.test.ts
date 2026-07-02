@@ -3,7 +3,9 @@ import { parsePrefix } from "../src/prefix-parser.js";
 
 describe("parsePrefix — errors", () => {
   it("throws when no comma separates the binders from the body", () => {
-    expect(() => parsePrefix("forall (x: int) foo(x)")).toThrow(/expected ',' separating binders from body/);
+    expect(() => parsePrefix("forall (x: int) foo(x)")).toThrow(
+      /expected ',' separating binders from body/,
+    );
   });
 });
 
@@ -39,7 +41,9 @@ describe("parsePrefix", () => {
   });
 
   it("rejects an unknown domain", () => {
-    expect(() => parsePrefix("forall (x: float), x === x")).toThrow(/unknown generation domain 'float'/);
+    expect(() => parsePrefix("forall (x: float), x === x")).toThrow(
+      /unknown generation domain 'float'/,
+    );
   });
 
   it("requires forall", () => {
@@ -53,7 +57,11 @@ describe("parsePrefix", () => {
 
 describe("parsePrefix — existential", () => {
   it("rejects a leading ∃ / exists with a teaching error", () => {
-    expect(() => parsePrefix("∃ (x: int), p(x)")).toThrow(/existential quantifiers .* not supported/i);
-    expect(() => parsePrefix("exists (x: int), p(x)")).toThrow(/existential quantifiers .* not supported/i);
+    expect(() => parsePrefix("∃ (x: int), p(x)")).toThrow(
+      /existential quantifiers .* not supported/i,
+    );
+    expect(() => parsePrefix("exists (x: int), p(x)")).toThrow(
+      /existential quantifiers .* not supported/i,
+    );
   });
 });

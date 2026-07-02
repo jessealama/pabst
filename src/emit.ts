@@ -5,7 +5,12 @@ import type { PropertySpec } from "./ir.js";
 
 const SRC_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
 
-export function emit(specs: PropertySpec[], sourceFile: string, outFile: string, seed: number): string {
+export function emit(
+  specs: PropertySpec[],
+  sourceFile: string,
+  outFile: string,
+  seed: number,
+): string {
   const srcAbs = path.resolve(sourceFile).replace(SRC_EXT, "");
   const outDir = path.dirname(path.resolve(outFile));
   let rel = path.relative(outDir, srcAbs).split(path.sep).join("/");
@@ -16,9 +21,12 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
   const lines: string[] = [];
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
-  lines.push(`import { report as __pabstReport, bool as __bool } from "pabst/runtime";`);
+  lines.push(
+    `import { report as __pabstReport, bool as __bool } from "pabst/runtime";`,
+  );
   lines.push(`import * as __M from "${rel}";`);
-  if (allExports.length > 0) lines.push(`const { ${allExports.join(", ")} } = __M;`);
+  if (allExports.length > 0)
+    lines.push(`const { ${allExports.join(", ")} } = __M;`);
   lines.push("");
   lines.push(`describe("pabst", () => {`);
 
@@ -39,14 +47,16 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
     if (className === undefined) {
       for (const [fnName, fnSpecs] of methods) {
         lines.push(`  describe(${JSON.stringify(fnName)}, () => {`);
-        for (const s of fnSpecs) lines.push(emitProp(s, sourceFile, seed, "    "));
+        for (const s of fnSpecs)
+          lines.push(emitProp(s, sourceFile, seed, "    "));
         lines.push(`  });`);
       }
     } else {
       lines.push(`  describe(${JSON.stringify(className)}, () => {`);
       for (const [methodName, mSpecs] of methods) {
         lines.push(`    describe(${JSON.stringify(methodName)}, () => {`);
-        for (const s of mSpecs) lines.push(emitProp(s, sourceFile, seed, "      "));
+        for (const s of mSpecs)
+          lines.push(emitProp(s, sourceFile, seed, "      "));
         lines.push(`    });`);
       }
       lines.push(`  });`);
@@ -58,13 +68,20 @@ export function emit(specs: PropertySpec[], sourceFile: string, outFile: string,
   return lines.join("\n");
 }
 
-function emitProp(s: PropertySpec, sourceFile: string, seed: number, indent: string): string {
+function emitProp(
+  s: PropertySpec,
+  sourceFile: string,
+  seed: number,
+  indent: string,
+): string {
   const arbs = s.binders.map((b) => arbitraryFor(b.domain)).join(", ");
   const vars = s.binders.map((b) => b.varName).join(", ");
   const varNames = s.binders.map((b) => JSON.stringify(b.varName)).join(", ");
   const name = JSON.stringify(s.name);
   const file = JSON.stringify(sourceFile);
-  const fn = JSON.stringify(qualifiedName(s.functionName, s.className, s.isStatic));
+  const fn = JSON.stringify(
+    qualifiedName(s.functionName, s.className, s.isStatic),
+  );
   const reporter = `(d) => __pabstReport(${file}, ${fn}, ${name}, [${varNames}], d)`;
   const params = `{ seed: ${seed}, reporter: ${reporter} }`;
   const out: string[] = [];

@@ -1,4 +1,12 @@
-import { describe, it, expect, afterAll, beforeAll, beforeEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  afterAll,
+  beforeAll,
+  beforeEach,
+  vi,
+} from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -26,7 +34,9 @@ describe("cli main", () => {
   it("gen writes generated files and returns 0", () => {
     const code = main(["gen", "baz.ts"]);
     expect(code).toBe(0);
-    expect(fs.existsSync(path.join(dir, ".pabst", "baz.pabst.test.ts"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, ".pabst", "baz.pabst.test.ts"))).toBe(
+      true,
+    );
   });
 
   it("returns 2 on unknown command", () => {
@@ -99,63 +109,89 @@ describe("cli test command (README usage claims)", () => {
     fs.rmSync(path.join(workDir, ".pabst"), { recursive: true, force: true });
   });
 
-  it("test on a clean file prints one JSON envelope to stdout and exits 0", { timeout: 60000 }, () => {
-    const { code, stdout } = runMain(["test", "good.ts"]);
-    expect(code).toBe(0);
-    expect(stdout).toHaveLength(1);
-    const env = JSON.parse(stdout[0]!);
-    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
-    expect(env).toMatchObject({
-      version: pkg.version,
-      cwd: process.cwd(),
-      generated: 1,
-      passed: 1,
-      failed: 0,
-      issues: [],
-    });
-    expect(env.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-    expect(Number.isInteger(env.seed)).toBe(true);
-    expect(env.seed).toBeGreaterThanOrEqual(0);
-    expect(env.seed).toBeLessThan(2 ** 32);
-  });
+  it(
+    "test on a clean file prints one JSON envelope to stdout and exits 0",
+    { timeout: 60000 },
+    () => {
+      const { code, stdout } = runMain(["test", "good.ts"]);
+      expect(code).toBe(0);
+      expect(stdout).toHaveLength(1);
+      const env = JSON.parse(stdout[0]!);
+      const pkg = JSON.parse(
+        fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+      );
+      expect(env).toMatchObject({
+        version: pkg.version,
+        cwd: process.cwd(),
+        generated: 1,
+        passed: 1,
+        failed: 0,
+        issues: [],
+      });
+      expect(env.startedAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+      );
+      expect(Number.isInteger(env.seed)).toBe(true);
+      expect(env.seed).toBeGreaterThanOrEqual(0);
+      expect(env.seed).toBeLessThan(2 ** 32);
+    },
+  );
 
-  it("test on a failing file exits 1 with a structured issue in the envelope", { timeout: 60000 }, () => {
-    const { code, stdout } = runMain(["test", "bad.ts"]);
-    expect(code).toBe(1);
-    const env = JSON.parse(stdout[0]!);
-    expect(env).toMatchObject({ generated: 1, passed: 0, failed: 1 });
-    expect(env.issues).toEqual([
-      {
-        file: "bad.ts",
-        function: "bad",
-        property: "negative",
-        kind: "falsified",
-        counterexample: { n: 0 },
-      },
-    ]);
-  });
+  it(
+    "test on a failing file exits 1 with a structured issue in the envelope",
+    { timeout: 60000 },
+    () => {
+      const { code, stdout } = runMain(["test", "bad.ts"]);
+      expect(code).toBe(1);
+      const env = JSON.parse(stdout[0]!);
+      expect(env).toMatchObject({ generated: 1, passed: 0, failed: 1 });
+      expect(env.issues).toEqual([
+        {
+          file: "bad.ts",
+          function: "bad",
+          property: "negative",
+          kind: "falsified",
+          counterexample: { n: 0 },
+        },
+      ]);
+    },
+  );
 
-  it("test --seed echoes the given seed in the envelope", { timeout: 60000 }, () => {
-    const { code, stdout } = runMain(["test", "--seed", "123", "good.ts"]);
-    expect(code).toBe(0);
-    expect(JSON.parse(stdout[0]!).seed).toBe(123);
-  });
+  it(
+    "test --seed echoes the given seed in the envelope",
+    { timeout: 60000 },
+    () => {
+      const { code, stdout } = runMain(["test", "--seed", "123", "good.ts"]);
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout[0]!).seed).toBe(123);
+    },
+  );
 
-  it("passing a prior run's seed back reproduces that run", { timeout: 120000 }, () => {
-    const first = JSON.parse(runMain(["test", "bad.ts"]).stdout[0]!);
-    fs.rmSync(path.join(workDir, ".pabst"), { recursive: true, force: true });
-    const second = JSON.parse(runMain(["test", "--seed", String(first.seed), "bad.ts"]).stdout[0]!);
-    expect(second.seed).toBe(first.seed);
-    expect(second.issues).toEqual(first.issues);
-    expect(second.passed).toBe(first.passed);
-    expect(second.failed).toBe(first.failed);
-  });
+  it(
+    "passing a prior run's seed back reproduces that run",
+    { timeout: 120000 },
+    () => {
+      const first = JSON.parse(runMain(["test", "bad.ts"]).stdout[0]!);
+      fs.rmSync(path.join(workDir, ".pabst"), { recursive: true, force: true });
+      const second = JSON.parse(
+        runMain(["test", "--seed", String(first.seed), "bad.ts"]).stdout[0]!,
+      );
+      expect(second.seed).toBe(first.seed);
+      expect(second.issues).toEqual(first.issues);
+      expect(second.passed).toBe(first.passed);
+      expect(second.failed).toBe(first.failed);
+    },
+  );
 
-  it("test accepts globs and reports across all matched files", { timeout: 60000 }, () => {
-    const { code, stdout } = runMain(["test", "*.ts"]);
-    expect(code).toBe(1);
-    const env = JSON.parse(stdout[0]!);
-    expect(env).toMatchObject({ generated: 2, passed: 1, failed: 1 });
-    expect(env.issues).toHaveLength(1);
-  });
+  it(
+    "test accepts globs and reports across all matched files",
+    { timeout: 60000 },
+    () => {
+      const { code, stdout } = runMain(["test", "*.ts"]);
+      expect(code).toBe(1);
+      const env = JSON.parse(stdout[0]!);
+      expect(env).toMatchObject({ generated: 2, passed: 1, failed: 1 });
+      expect(env.issues).toHaveLength(1);
+    },
+  );
 });

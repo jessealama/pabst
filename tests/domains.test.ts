@@ -19,8 +19,13 @@ describe("domains", () => {
   });
 
   it("table has exactly the six MVP domains", () => {
-    expect(Object.keys(DOMAIN_TABLE).sort()).toEqual(
-      ["bigint", "boolean", "int", "nat", "number", "string"]
-    );
+    expect(Object.keys(DOMAIN_TABLE).sort()).toEqual([
+      "bigint",
+      "boolean",
+      "int",
+      "nat",
+      "number",
+      "string",
+    ]);
   });
 });

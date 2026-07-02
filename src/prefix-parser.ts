@@ -12,13 +12,15 @@ export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
     throw new Error(
       "existential quantifiers (∃ / exists) are not supported: property-based " +
-      "testing samples inputs, so it can refute ∀ with a counterexample but cannot " +
-      "soundly confirm ∃ (a bounded/exhaustive mode would be needed)",
+        "testing samples inputs, so it can refute ∀ with a counterexample but cannot " +
+        "soundly confirm ∃ (a bounded/exhaustive mode would be needed)",
     );
   }
   const m = FORALL.exec(formula);
   if (!m) {
-    throw new Error(`expected 'forall' (or ∀) at start of property: ${formula.trim().slice(0, 60)}`);
+    throw new Error(
+      `expected 'forall' (or ∀) at start of property: ${formula.trim().slice(0, 60)}`,
+    );
   }
   let i = m[0].length;
   const binders: Binder[] = [];
@@ -32,20 +34,33 @@ export function parsePrefix(formula: string): ParsedPrefix {
     for (; j < formula.length; j++) {
       const c = formula[j]!;
       if (c === "(") depth++;
-      else if (c === ")") { depth--; if (depth === 0) { j++; break; } }
+      else if (c === ")") {
+        depth--;
+        if (depth === 0) {
+          j++;
+          break;
+        }
+      }
     }
-    if (depth !== 0) throw new Error(`unbalanced parentheses in binder group: ${formula.slice(start)}`);
+    if (depth !== 0)
+      throw new Error(
+        `unbalanced parentheses in binder group: ${formula.slice(start)}`,
+      );
     binders.push(...parseBinderGroup(formula.slice(start + 1, j - 1)));
     i = j;
   }
 
   if (binders.length === 0) {
-    throw new Error(`expected at least one binder group '(x: domain)' after forall`);
+    throw new Error(
+      `expected at least one binder group '(x: domain)' after forall`,
+    );
   }
 
   while (i < formula.length && /\s/.test(formula[i]!)) i++;
   if (formula[i] !== ",") {
-    throw new Error(`expected ',' separating binders from body, got: ${formula.slice(i, i + 60)}`);
+    throw new Error(
+      `expected ',' separating binders from body, got: ${formula.slice(i, i + 60)}`,
+    );
   }
   i++;
   const body = formula.slice(i).trim();
@@ -55,16 +70,23 @@ export function parsePrefix(formula: string): ParsedPrefix {
 
 function parseBinderGroup(group: string): Binder[] {
   const colon = group.indexOf(":");
-  if (colon === -1) throw new Error(`binder group missing ':' — expected '(x: domain)', got: (${group})`);
+  if (colon === -1)
+    throw new Error(
+      `binder group missing ':' — expected '(x: domain)', got: (${group})`,
+    );
   const varsPart = group.slice(0, colon).trim();
   const domainPart = group.slice(colon + 1).trim();
   if (!isDomain(domainPart)) {
-    throw new Error(`unknown generation domain '${domainPart}' — valid domains: int, nat, number, boolean, string, bigint`);
+    throw new Error(
+      `unknown generation domain '${domainPart}' — valid domains: int, nat, number, boolean, string, bigint`,
+    );
   }
   const names = varsPart.split(/\s+/).filter(Boolean);
-  if (names.length === 0) throw new Error(`binder group has no variable names: (${group})`);
+  if (names.length === 0)
+    throw new Error(`binder group has no variable names: (${group})`);
   for (const n of names) {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) throw new Error(`invalid binder variable name '${n}'`);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
+      throw new Error(`invalid binder variable name '${n}'`);
   }
   return names.map((varName) => ({ varName, domain: domainPart }));
 }

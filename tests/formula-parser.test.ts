@@ -40,7 +40,10 @@ describe("parseBody — precedence", () => {
 
 describe("parseBody — atoms keep their JS", () => {
   it("treats a call with commas as one atom", () => {
-    expect(lo("f(x, y) !== 0")).toEqual({ preconditions: [], body: '__bool(f(x, y) !== 0, "f(x, y) !== 0")' });
+    expect(lo("f(x, y) !== 0")).toEqual({
+      preconditions: [],
+      body: '__bool(f(x, y) !== 0, "f(x, y) !== 0")',
+    });
   });
   it("allows nested && inside a callback leaf", () => {
     expect(lo("xs.every(x => x > 0 && x < 10)")).toEqual({

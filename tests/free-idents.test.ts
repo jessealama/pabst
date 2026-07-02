@@ -26,13 +26,15 @@ describe("classify", () => {
 
   it("routes module exports to freeExports and ignores bound vars + globals", () => {
     const ids = new Set(["x", "y", "Math", "foo"]);
-    expect(classify(ids, bound, exports, "nonzero", "foo.ts")).toEqual({ freeExports: ["foo"] });
+    expect(classify(ids, bound, exports, "nonzero", "foo.ts")).toEqual({
+      freeExports: ["foo"],
+    });
   });
 
   it("throws on an unexported, non-global, non-bound identifier", () => {
     const ids = new Set(["x", "bar"]);
     expect(() => classify(ids, bound, exports, "nonzero", "foo.ts")).toThrow(
-      "property 'nonzero' references 'bar', which is not exported from foo.ts"
+      "property 'nonzero' references 'bar', which is not exported from foo.ts",
     );
   });
 });

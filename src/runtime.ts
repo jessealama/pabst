@@ -34,10 +34,14 @@ function throwIssue(issue: Issue): never {
 export function bool(v: unknown, expr: string): boolean {
   if (v !== true && v !== false) {
     const shown =
-      typeof v === "string" ? JSON.stringify(v)
-      : typeof v === "bigint" ? `${v}n`
-      : String(v);
-    throw new Error(`atom ${JSON.stringify(expr)} evaluated to ${shown}, not a boolean`);
+      typeof v === "string"
+        ? JSON.stringify(v)
+        : typeof v === "bigint"
+          ? `${v}n`
+          : String(v);
+    throw new Error(
+      `atom ${JSON.stringify(expr)} evaluated to ${shown}, not a boolean`,
+    );
   }
   return v;
 }

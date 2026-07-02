@@ -9,12 +9,18 @@ export type Formula =
 /** All atom source texts in left-to-right order. */
 export function collectAtoms(f: Formula): string[] {
   switch (f.kind) {
-    case "atom": return [f.text];
-    case "not": return collectAtoms(f.arg);
+    case "atom":
+      return [f.text];
+    case "not":
+      return collectAtoms(f.arg);
     case "and":
     case "or":
-    case "iff": return [...collectAtoms(f.left), ...collectAtoms(f.right)];
+    case "iff":
+      return [...collectAtoms(f.left), ...collectAtoms(f.right)];
     case "implication":
-      return [...f.antecedents.flatMap(collectAtoms), ...collectAtoms(f.consequent)];
+      return [
+        ...f.antecedents.flatMap(collectAtoms),
+        ...collectAtoms(f.consequent),
+      ];
   }
 }

@@ -83,11 +83,11 @@ Glyphs are canonical; ASCII fallbacks are accepted.
 - **Atoms are JavaScript** and must be genuine booleans — every atom is checked
   at runtime (`5 ∧ true` is an error, not a coercion). You may **not** use JS
   `&&`/`||`/`!` at an atom's top level — use the glyphs. They remain legal
-  *inside* a leaf (e.g. a callback `xs.every(x => x > 0 && x < 10)`).
+  _inside_ a leaf (e.g. a callback `xs.every(x => x > 0 && x < 10)`).
 - **Implication discard:** a **top-level** `→`'s antecedents become `fc.pre(...)`
   (QuickCheck-style discarded cases, reported as `exhausted` if too many skip);
   a **parenthesised** `→` is ordinary material implication `¬P ∨ Q`.
-- **Biconditional** `↔` is non-associative (parenthesise chains) and is *not* a
+- **Biconditional** `↔` is non-associative (parenthesise chains) and is _not_ a
   discard — it lowers to boolean equality.
 - **Scoping:** every symbol an atom references must be `export`ed from its module.
 

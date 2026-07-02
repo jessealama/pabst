@@ -46,7 +46,9 @@ export function extractFromSource(text: string, file: string): ExtractResult {
   const record = (a: RawAnnotation, key: string, subject: string): void => {
     const set = seen.get(key) ?? new Set<string>();
     if (set.has(a.propertyName)) {
-      throw new Error(`duplicate property name '${a.propertyName}' on ${subject} in ${file}`);
+      throw new Error(
+        `duplicate property name '${a.propertyName}' on ${subject} in ${file}`,
+      );
     }
     set.add(a.propertyName);
     seen.set(key, set);
@@ -62,7 +64,12 @@ export function extractFromSource(text: string, file: string): ExtractResult {
     if (!fnName) continue;
     for (const m of ensuresComments(stmt, sf)) {
       record(
-        { propertyName: m.propertyName, functionName: fnName, formula: m.formula, line: m.line },
+        {
+          propertyName: m.propertyName,
+          functionName: fnName,
+          formula: m.formula,
+          line: m.line,
+        },
         fnName,
         `function '${fnName}'`,
       );
@@ -100,7 +107,9 @@ function collectClassAnnotations(
     if (matches.length === 0) continue;
     const label = memberLabel(member);
     if (!className) {
-      throw new Error(`@ensures on method '${label}' of an anonymous class in ${file}`);
+      throw new Error(
+        `@ensures on method '${label}' of an anonymous class in ${file}`,
+      );
     }
     if (!isEligibleMethod(member)) {
       throw new Error(ineligibleMessage(member, label, className, file));
@@ -114,7 +123,14 @@ function collectClassAnnotations(
     const key = qualifiedName(label, className, isStatic);
     for (const m of matches) {
       record(
-        { propertyName: m.propertyName, functionName: label, className, isStatic, formula: m.formula, line: m.line },
+        {
+          propertyName: m.propertyName,
+          functionName: label,
+          className,
+          isStatic,
+          formula: m.formula,
+          line: m.line,
+        },
         key,
         `method '${key}'`,
       );
@@ -122,7 +138,9 @@ function collectClassAnnotations(
   }
 }
 
-function isEligibleMethod(member: ts.ClassElement): member is ts.MethodDeclaration {
+function isEligibleMethod(
+  member: ts.ClassElement,
+): member is ts.MethodDeclaration {
   if (!ts.isMethodDeclaration(member)) return false;
   if (!ts.isIdentifier(member.name)) return false; // computed name or #private
   if (hasModifier(member, ts.SyntaxKind.PrivateKeyword)) return false;
@@ -153,7 +171,12 @@ function ineligibleMessage(
 
 function memberLabel(member: ts.ClassElement): string {
   const name = member.name;
-  if (name && (ts.isIdentifier(name) || ts.isPrivateIdentifier(name) || ts.isStringLiteral(name))) {
+  if (
+    name &&
+    (ts.isIdentifier(name) ||
+      ts.isPrivateIdentifier(name) ||
+      ts.isStringLiteral(name))
+  ) {
     return name.text;
   }
   if (ts.isConstructorDeclaration(member)) return "constructor";
@@ -170,8 +193,11 @@ function functionNameOf(stmt: ts.Statement): string | undefined {
   if (ts.isVariableStatement(stmt)) {
     const decl = stmt.declarationList.declarations[0];
     if (
-      decl && ts.isIdentifier(decl.name) && decl.initializer &&
-      (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))
+      decl &&
+      ts.isIdentifier(decl.name) &&
+      decl.initializer &&
+      (ts.isArrowFunction(decl.initializer) ||
+        ts.isFunctionExpression(decl.initializer))
     ) {
       return decl.name.text;
     }
@@ -183,17 +209,24 @@ function collectExports(sf: ts.SourceFile): Set<string> {
   const out = new Set<string>();
   for (const stmt of sf.statements) {
     const mods = ts.canHaveModifiers(stmt) ? ts.getModifiers(stmt) : undefined;
-    const isExported = mods?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+    const isExported = mods?.some(
+      (m) => m.kind === ts.SyntaxKind.ExportKeyword,
+    );
     if (isExported) {
       if (ts.isFunctionDeclaration(stmt) && stmt.name) out.add(stmt.name.text);
-      else if (ts.isClassDeclaration(stmt) && stmt.name) out.add(stmt.name.text);
+      else if (ts.isClassDeclaration(stmt) && stmt.name)
+        out.add(stmt.name.text);
       else if (ts.isVariableStatement(stmt)) {
         for (const d of stmt.declarationList.declarations) {
           if (ts.isIdentifier(d.name)) out.add(d.name.text);
         }
       }
     }
-    if (ts.isExportDeclaration(stmt) && stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamedExports(stmt.exportClause)
+    ) {
       for (const e of stmt.exportClause.elements) out.add(e.name.text);
     }
   }
