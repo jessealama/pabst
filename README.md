@@ -6,8 +6,10 @@ Annotate a function with a quantified property in a JSDoc comment, run one comma
 and get either "cases passed" or a shrunk counterexample.
 
 ```ts
-/** @ensures{nonzero} forall (x: bigint) (y: number),
- *    Number.isInteger(y) ==> foo(x, y) !== 0 */
+/**
+ * @ensures{nonzero} forall (x: bigint) (y: number),
+ *   Number.isInteger(y) ==> foo(x, y) !== 0
+ */
 export function foo(x: bigint, y: number): number {
   return 2 * (Number(x) + y) + 1;
 }
@@ -69,8 +71,10 @@ A property is a universally quantified formula in pabst's **logic surface**.
 Glyphs are canonical; ASCII fallbacks are accepted.
 
 ```ts
-/** @ensures{guarded} forall (x: int),
- *    isPrime(x) ∧ x > 2 → isOdd(x) */
+/**
+ * @ensures{guarded} forall (x: int),
+ *   isPrime(x) ∧ x > 2 → isOdd(x)
+ */
 ```
 
 - **Quantifier:** `forall` / `∀`, one-or-more binder groups, then a comma, then
