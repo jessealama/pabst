@@ -5,15 +5,23 @@
 Annotate a function with a quantified property in a JSDoc comment, run one command,
 and get either "cases passed" or a shrunk counterexample.
 
+Look at this code. We're trying to assert that the value of the function is
+non-zero provided the second argument is an integer. Can you spot the error?
+
 ```ts
 /**
  * @ensures{nonzero} forall (x: bigint) (y: number),
  *   Number.isInteger(y) ==> foo(x, y) !== 0
  */
 export function foo(x: bigint, y: number): number {
-  return 2 * (Number(x) + y) + 1;
+  return Number(x % 2n) + (y % 2) + 1;
 }
 ```
+
+Each remainder looks like it should be 0 or 1, so the sum looks like it's at
+least 1. But JavaScript's `%` returns _negative_ remainders for negative
+operands: `foo(-1n, 0)` is `-1 + 0 + 1 === 0`. You don't have to spot that —
+`pabst test` falsifies the property and reports a counterexample.
 
 ## Usage
 

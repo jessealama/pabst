@@ -148,7 +148,7 @@ describe("end-to-end", () => {
   );
 
   it(
-    "the README front-page example is verbatim on disk and passes",
+    "the README front-page example is verbatim on disk and is falsified",
     { timeout: 30000 },
     () => {
       const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
@@ -158,11 +158,18 @@ describe("end-to-end", () => {
         fs.readFileSync(readmeExampleSrc, "utf8"),
         "tests/fixtures/e2e/readme-example.ts must be byte-identical to the README's first ts block",
       ).toBe(block);
-      const [r] = generate([readmeExampleSrc]);
+      const [r] = generate([readmeExampleSrc], ".pabst", 3);
       expect(r).toBeDefined();
       const { status, issues } = runVitest(r!.outFile);
-      expect(issues).toEqual([]);
-      expect(status).toBe(0);
+      expect(status).not.toBe(0);
+      expect(issues).toHaveLength(1);
+      expectValidIssue(issues[0]);
+      expect(issues[0]).toMatchObject({
+        function: "foo",
+        property: "nonzero",
+        kind: "falsified",
+      });
+      expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x", "y"]);
     },
   );
 

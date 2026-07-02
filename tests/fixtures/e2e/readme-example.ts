@@ -3,5 +3,5 @@
  *   Number.isInteger(y) ==> foo(x, y) !== 0
  */
 export function foo(x: bigint, y: number): number {
-  return 2 * (Number(x) + y) + 1;
+  return Number(x % 2n) + (y % 2) + 1;
 }
