@@ -1,13 +1,10 @@
 import { parseArgs } from "node:util";
 import { globSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
 import { PabstError } from "./errors.js";
-import { buildEnvelope } from "./envelope.js";
+import { runTests } from "./run.js";
 import { randomSeed, parseSeed } from "./seed.js";
-
-const RESULTS_FILE = ".pabst/.last-run.json";
 
 const TS_EXT = /\.(ts|tsx|mts|cts)$/;
 
@@ -80,37 +77,26 @@ export function main(argv: string[] = process.argv.slice(2)): number {
   if (command === "gen") return 0;
 
   // Capture vitest's machine-readable output instead of inheriting its full
-  // reporter. We assemble our own JSON envelope from it.
-  const res = spawnSync(
-    "npx",
-    [
-      "vitest",
-      "run",
-      ".pabst",
-      "--reporter=json",
-      `--outputFile=${RESULTS_FILE}`,
-    ],
-    { encoding: "utf8" },
-  );
+  // reporter; runTests assembles our own JSON envelope from it.
+  const result = runTests(".pabst", {
+    version,
+    startedAt,
+    cwd,
+    seed,
+    generated,
+  });
 
-  let json;
-  try {
-    json = JSON.parse(readFileSync(RESULTS_FILE, "utf8"));
-  } catch {
-    // No parseable results (e.g. the generated tests failed to compile). Surface
-    // vitest's raw output on stderr so the underlying error isn't swallowed; emit
-    // no envelope, because the run produced no trustworthy results.
-    process.stderr.write(res.stdout ?? "");
-    process.stderr.write(res.stderr ?? "");
-    return res.status ?? 1;
+  if (result.kind === "no-results") {
+    // No parseable results (e.g. vitest died on startup). Surface vitest's raw
+    // output on stderr so the underlying error isn't swallowed; emit no
+    // envelope, because the run produced no trustworthy results.
+    process.stderr.write(result.stdout);
+    process.stderr.write(result.stderr);
+    return result.status;
   }
 
-  const envelope = buildEnvelope(
-    { version, startedAt, cwd, seed, generated },
-    json,
-  );
-  console.log(JSON.stringify(envelope, null, 2));
-  return envelope.failed > 0 ? 1 : 0;
+  console.log(JSON.stringify(result.envelope, null, 2));
+  return result.envelope.failed > 0 ? 1 : 0;
 }
 
 if (
