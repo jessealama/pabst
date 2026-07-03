@@ -1,9 +1,10 @@
 import { describe, it, expect, afterAll, beforeAll } from "vitest";
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { generate } from "../src/codegen.js";
-import { parseIssue } from "../src/issue.js";
+import { runTests } from "../src/run.js";
+import type { RunMeta } from "../src/envelope.js";
+import type { Envelope } from "../src/issue.js";
 import { expectValidIssue } from "./helpers/issue-schema.js";
 
 const root = process.cwd();
@@ -42,25 +43,26 @@ function clean(): void {
   fs.rmSync(genDir, { recursive: true, force: true });
 }
 
-function runVitest(file: string): {
-  status: number;
-  issues: ReturnType<typeof parseIssue>[];
-} {
-  const out = path.join(root, ".pabst/.e2e-run.json");
-  const res = spawnSync(
-    "npx",
-    ["vitest", "run", file, "--reporter=json", `--outputFile=${out}`],
-    { encoding: "utf8" },
-  );
-  const json = JSON.parse(fs.readFileSync(out, "utf8"));
-  const issues = [];
-  for (const f of json.testResults ?? []) {
-    for (const a of f.assertionResults ?? []) {
-      if (a.status === "failed")
-        issues.push(parseIssue(a.failureMessages[0] ?? ""));
-    }
+// These tests assert on counts and issues, which come from the vitest run
+// itself; the run metadata is echoed through the envelope verbatim, so
+// placeholder values suffice.
+const META: RunMeta = {
+  version: "e2e",
+  startedAt: "1970-01-01T00:00:00.000Z",
+  cwd: root,
+  seed: 0,
+  generated: 1,
+};
+
+/** Run one generated test file through the shipped run seam. */
+function run(file: string): Envelope {
+  const result = runTests(file, META);
+  if (result.kind !== "completed") {
+    throw new Error(
+      `vitest produced no results:\n${result.stdout}${result.stderr}`,
+    );
   }
-  return { status: res.status ?? 1, issues };
+  return result.envelope;
 }
 
 describe("end-to-end", () => {
@@ -70,9 +72,9 @@ describe("end-to-end", () => {
   it("a true property passes vitest", { timeout: 30000 }, () => {
     const [r] = generate([passSrc]);
     expect(r).toBeDefined();
-    const { status, issues } = runVitest(r!.outFile);
-    expect(status).toBe(0);
-    expect(issues).toEqual([]);
+    const env = run(r!.outFile);
+    expect(env.failed).toBe(0);
+    expect(env.issues).toEqual([]);
   });
 
   it(
@@ -81,11 +83,11 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([failSrc]);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         property: "wrong",
         kind: "falsified",
         counterexample: { x: 1 },
@@ -103,9 +105,9 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([classPassSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).toBe(0);
-      expect(issues).toEqual([]);
+      const env = run(r!.outFile);
+      expect(env.failed).toBe(0);
+      expect(env.issues).toEqual([]);
     },
   );
 
@@ -115,11 +117,11 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([classFailSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         function: "BoundedCounter#dec",
         property: "neverNegative",
         kind: "falsified",
@@ -134,11 +136,11 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([nearMissSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         function: "Arith.negate",
         property: "matchesSubtraction",
         kind: "falsified",
@@ -160,33 +162,36 @@ describe("end-to-end", () => {
       ).toBe(block);
       const [r] = generate([readmeExampleSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         function: "foo",
         property: "nonzero",
         kind: "falsified",
       });
-      expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x", "y"]);
+      expect(Object.keys(env.issues[0]!.counterexample ?? {})).toEqual([
+        "x",
+        "y",
+      ]);
     },
   );
 
   it("README string laws (contains) pass vitest", { timeout: 30000 }, () => {
     const [r] = generate([stringLawsSrc]);
     expect(r).toBeDefined();
-    const { status, issues } = runVitest(r!.outFile);
-    expect(status).toBe(0);
-    expect(issues).toEqual([]);
+    const env = run(r!.outFile);
+    expect(env.failed).toBe(0);
+    expect(env.issues).toEqual([]);
   });
 
   it("Number(String(x)) round-trips over int", { timeout: 30000 }, () => {
     const [r] = generate([intRoundTripSrc]);
     expect(r).toBeDefined();
-    const { status, issues } = runVitest(r!.outFile);
-    expect(status).toBe(0);
-    expect(issues).toEqual([]);
+    const env = run(r!.outFile);
+    expect(env.failed).toBe(0);
+    expect(env.issues).toEqual([]);
   });
 
   it(
@@ -195,15 +200,15 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([floatAssocSrc], ".pabst", 1);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         property: "associative",
         kind: "falsified",
       });
-      expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual([
+      expect(Object.keys(env.issues[0]!.counterexample ?? {})).toEqual([
         "x",
         "y",
         "z",
@@ -217,15 +222,15 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([parseRoundTripSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         property: "parseIntInverts",
         kind: "falsified",
       });
-      expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+      expect(Object.keys(env.issues[0]!.counterexample ?? {})).toEqual(["x"]);
     },
   );
 
@@ -235,16 +240,16 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([safeSqrtSrc], ".pabst", 3);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         property: "nonNegativeRoot",
         kind: "threw",
       });
-      expect(issues[0]!.error).toContain("negative");
-      expect(Object.keys(issues[0]!.counterexample ?? {})).toEqual(["x"]);
+      expect(env.issues[0]!.error).toContain("negative");
+      expect(Object.keys(env.issues[0]!.counterexample ?? {})).toEqual(["x"]);
     },
   );
 
@@ -254,15 +259,15 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([exhaustedSrc]);
       expect(r).toBeDefined();
-      const { status, issues } = runVitest(r!.outFile);
-      expect(status).not.toBe(0);
-      expect(issues).toHaveLength(1);
-      expectValidIssue(issues[0]);
-      expect(issues[0]).toMatchObject({
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
         property: "unsatisfiable",
         kind: "exhausted",
       });
-      expect(issues[0]!.counterexample).toBeUndefined();
+      expect(env.issues[0]!.counterexample).toBeUndefined();
     },
   );
 });
@@ -276,9 +281,9 @@ describe("e2e — math-y connectives", () => {
     () => {
       clean();
       const [res] = generate([connectivesSrc], ".pabst", 1234);
-      const { status, issues } = runVitest(res!.outFile);
-      expect(issues).toEqual([]);
-      expect(status).toBe(0);
+      const env = run(res!.outFile);
+      expect(env.issues).toEqual([]);
+      expect(env.failed).toBe(0);
     },
   );
 
@@ -288,8 +293,8 @@ describe("e2e — math-y connectives", () => {
     () => {
       clean();
       const [res] = generate([atomNotBoolSrc], ".pabst", 1234);
-      const { issues } = runVitest(res!.outFile);
-      const issue = issues.find((i) => i?.property === "notBool");
+      const env = run(res!.outFile);
+      const issue = env.issues.find((i) => i.property === "notBool");
       expect(issue?.kind).toBe("threw");
       expect(issue?.error).toMatch(
         /atom "addOne\(x\)" evaluated to .*not a boolean/,
