@@ -64,6 +64,92 @@ describe("cli main", () => {
   });
 });
 
+// Issue #12: user-facing compile errors (malformed formulas, unsupported
+// constructs, bad references) must exit 2 with a one-line diagnostic, not
+// escape main() as an uncaught exception. These use `pabst test` — compilation
+// fails before vitest is spawned, so no timeout is needed.
+describe("cli compile errors (exit-code contract)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pabst-cli-err-"));
+  const prevCwd = process.cwd();
+
+  function runMain(argv: string[]): { code: number; stderr: string[] } {
+    const stderr: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((s) => {
+      stderr.push(String(s));
+    });
+    try {
+      return { code: main(argv), stderr };
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  beforeAll(() => {
+    fs.writeFileSync(
+      path.join(dir, "malformed.ts"),
+      `/** @ensures{shapely} for every (n: nat), malformed(n) >= 0 */\nexport function malformed(n: number): number { return n; }\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, "unexported.ts"),
+      `/** @ensures{agrees} forall (n: nat), unexported(n) === helper(n) */\nexport function unexported(n: number): number { return n; }\nfunction helper(n: number): number { return n; }\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, "existential.ts"),
+      `/** @ensures{someone} exists (n: nat), ex(n) > 0 */\nexport function ex(n: number): number { return n; }\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, "baddomain.ts"),
+      `/** @ensures{rounds} forall (x: float), rounder(x) >= 0 */\nexport function rounder(x: number): number { return x; }\n`,
+      "utf8",
+    );
+    process.chdir(dir);
+  });
+  afterAll(() => {
+    process.chdir(prevCwd);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("test on a malformed @ensures exits 2 with a one-line diagnostic", () => {
+    const { code, stderr } = runMain(["test", "malformed.ts"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("malformed.ts:1");
+    expect(stderr[0]).toContain("shapely");
+    expect(stderr[0]).not.toContain("\n");
+  });
+
+  it("test on an unexported-symbol reference exits 2", () => {
+    const { code, stderr } = runMain(["test", "unexported.ts"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("unexported.ts:1");
+    expect(stderr[0]).toContain("helper");
+  });
+
+  it("test on an existential quantifier exits 2", () => {
+    const { code, stderr } = runMain(["test", "existential.ts"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("existential.ts:1");
+    expect(stderr[0]).toContain("someone");
+  });
+
+  it("test on an unsupported domain exits 2", () => {
+    const { code, stderr } = runMain(["test", "baddomain.ts"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("baddomain.ts:1");
+    expect(stderr[0]).toContain("float");
+  });
+
+  it("gen on a malformed @ensures also exits 2", () => {
+    expect(runMain(["gen", "malformed.ts"]).code).toBe(2);
+  });
+});
+
 // README usage claims: `pabst test` prints a single JSON envelope to stdout,
 // exits 0/1 on clean/failing runs, echoes the seed, and reproduces a run when
 // the seed is passed back. The generated tests import "pabst/runtime" via the

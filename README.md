@@ -94,7 +94,9 @@ Each issue records where the property lived and why it failed:
   reproduce a failing run exactly.
 
 The process exits `0` when `issues` is empty, `1` when there is at least one
-issue, and `2` on usage errors.
+issue, and `2` on usage errors — including annotation errors such as a
+malformed formula, an unsupported domain, or a reference to an unexported
+symbol, which are reported as a one-line message on stderr.
 
 ## Grammar
 

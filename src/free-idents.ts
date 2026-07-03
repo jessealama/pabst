@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { PabstError } from "./errors.js";
 
 export const GLOBALS = new Set<string>([
   "Math",
@@ -66,7 +67,7 @@ export function classify(
       freeExports.push(id);
       continue;
     }
-    throw new Error(
+    throw new PabstError(
       `property '${propertyName}' references '${id}', which is not exported from ${moduleFile}`,
     );
   }
