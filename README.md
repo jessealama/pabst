@@ -23,12 +23,34 @@ least 1. But JavaScript's `%` returns _negative_ remainders for negative
 operands: `foo(-1n, 0)` is `-1 + 0 + 1 === 0`. You don't have to spot that —
 `pabst test` falsifies the property and reports a counterexample.
 
+## Philosophy
+
+pabst is a property-based testing tool. Instead of checking your function
+against a handful of hand-picked examples, it generates many random inputs and
+works hard to **refute** the property you attached; when it succeeds, it
+shrinks the failure to a small, readable counterexample. One thing should be
+understood, though: failing to invalidate a property — even across many runs —
+is no _proof_ that the property holds. It is evidence that it holds, but the
+property might still be false on inputs the generator never tried. If your
+goal is to prove the absence of counterexamples, you need proof-based tools
+such as [Thales](https://github.com/jessealama/thales). That said,
+property-based testing is a powerful technique that exposes a lot of bugs for
+very little effort, and it sits comfortably alongside proof-based approaches.
+
 ## Usage
 
 ```bash
 pabst test <files-or-globs>            # generate, run, and print a JSON report
 pabst test --seed <n> <files-or-globs> # reproduce a prior run's generation
 pabst gen  <files-or-globs>            # generate only; run your own vitest against .pabst/
+```
+
+pabst writes the test files it generates to a `.pabst/` directory in your
+project. Those files are regenerated on every run, so there is no reason to
+commit them — add `.pabst/` to your `.gitignore`:
+
+```bash
+echo '.pabst/' >> .gitignore
 ```
 
 ## Output
@@ -109,9 +131,9 @@ an atom that throws is the third value. The `→` discard is a sampling control,
 not a truth value; `∀` is a sampled (bounded) quantifier.
 
 Each `@ensures{name}` becomes one issue (keyed by file, function, and property
-name) if it fails. Generated files land in a gitignored `.pabst/` directory
-mirroring the source tree; they are regenerated every run and must never be
-hand-edited.
+name) if it fails. Generated files land in the `.pabst/` directory (see
+[Usage](#usage)) mirroring the source tree; they are regenerated every run and
+must never be hand-edited.
 
 ## Development
 
