@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { PabstError } from "./errors.js";
 
 export const GLOBALS = new Set<string>([
   "Math",
@@ -55,8 +56,6 @@ export function classify(
   idents: Set<string>,
   boundVars: Set<string>,
   moduleExports: Set<string>,
-  propertyName: string,
-  moduleFile: string,
 ): Classification {
   const freeExports: string[] = [];
   for (const id of idents) {
@@ -66,9 +65,9 @@ export function classify(
       freeExports.push(id);
       continue;
     }
-    throw new Error(
-      `property '${propertyName}' references '${id}', which is not exported from ${moduleFile}`,
-    );
+    // The per-annotation wrapper in build-spec prefixes file, line, and
+    // property name, so naming them here would state them twice.
+    throw new PabstError(`references '${id}', which is not exported`);
   }
   return { freeExports: [...new Set(freeExports)] };
 }

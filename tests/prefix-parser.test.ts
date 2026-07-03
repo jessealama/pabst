@@ -1,10 +1,47 @@
 import { describe, it, expect } from "vitest";
 import { parsePrefix } from "../src/prefix-parser.js";
+import { expectPabstError } from "./helpers/errors.js";
 
 describe("parsePrefix — errors", () => {
   it("throws when no comma separates the binders from the body", () => {
-    expect(() => parsePrefix("forall (x: int) foo(x)")).toThrow(
+    expectPabstError(
+      () => parsePrefix("forall (x: int) foo(x)"),
       /expected ',' separating binders from body/,
+    );
+  });
+
+  it("throws on an unbalanced binder group", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int, x === x"),
+      /unbalanced parentheses in binder group/,
+    );
+  });
+
+  it("throws on an empty body", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int),"),
+      /property body is empty/,
+    );
+  });
+
+  it("throws on a binder group without ':'", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x int), x === x"),
+      /binder group missing ':'/,
+    );
+  });
+
+  it("throws on a binder group without variable names", () => {
+    expectPabstError(
+      () => parsePrefix("forall (: int), x === x"),
+      /binder group has no variable names/,
+    );
+  });
+
+  it("throws on an invalid binder variable name", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x-y: int), x === x"),
+      /invalid binder variable name/,
     );
   });
 });
@@ -41,26 +78,29 @@ describe("parsePrefix", () => {
   });
 
   it("rejects an unknown domain", () => {
-    expect(() => parsePrefix("forall (x: float), x === x")).toThrow(
+    expectPabstError(
+      () => parsePrefix("forall (x: float), x === x"),
       /unknown generation domain 'float'/,
     );
   });
 
   it("requires forall", () => {
-    expect(() => parsePrefix("(x: int), x === x")).toThrow(/forall/);
+    expectPabstError(() => parsePrefix("(x: int), x === x"), /forall/);
   });
 
   it("requires at least one binder group", () => {
-    expect(() => parsePrefix("forall , x === x")).toThrow(/binder group/);
+    expectPabstError(() => parsePrefix("forall , x === x"), /binder group/);
   });
 });
 
 describe("parsePrefix — existential", () => {
   it("rejects a leading ∃ / exists with a teaching error", () => {
-    expect(() => parsePrefix("∃ (x: int), p(x)")).toThrow(
+    expectPabstError(
+      () => parsePrefix("∃ (x: int), p(x)"),
       /existential quantifiers .* not supported/i,
     );
-    expect(() => parsePrefix("exists (x: int), p(x)")).toThrow(
+    expectPabstError(
+      () => parsePrefix("exists (x: int), p(x)"),
       /existential quantifiers .* not supported/i,
     );
   });

@@ -1,6 +1,7 @@
 import ts from "typescript";
 import * as fs from "node:fs";
 import { qualifiedName } from "./qualified-name.js";
+import { PabstError } from "./errors.js";
 
 export interface RawAnnotation {
   propertyName: string;
@@ -46,7 +47,7 @@ export function extractFromSource(text: string, file: string): ExtractResult {
   const record = (a: RawAnnotation, key: string, subject: string): void => {
     const set = seen.get(key) ?? new Set<string>();
     if (set.has(a.propertyName)) {
-      throw new Error(
+      throw new PabstError(
         `duplicate property name '${a.propertyName}' on ${subject} in ${file}`,
       );
     }
@@ -107,15 +108,15 @@ function collectClassAnnotations(
     if (matches.length === 0) continue;
     const label = memberLabel(member);
     if (!className) {
-      throw new Error(
+      throw new PabstError(
         `@ensures on method '${label}' of an anonymous class in ${file}`,
       );
     }
     if (!isEligibleMethod(member)) {
-      throw new Error(ineligibleMessage(member, label, className, file));
+      throw new PabstError(ineligibleMessage(member, label, className, file));
     }
     if (!exportsSet.has(className)) {
-      throw new Error(
+      throw new PabstError(
         `@ensures on method '${label}' of class '${className}', which is not exported from ${file}`,
       );
     }

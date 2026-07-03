@@ -1,4 +1,5 @@
 import { isDomain } from "./domains.js";
+import { PabstError } from "./errors.js";
 import type { Binder } from "./ir.js";
 
 export interface ParsedPrefix {
@@ -10,7 +11,7 @@ const FORALL = /^\s*(?:forall|∀)\s*/;
 
 export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
-    throw new Error(
+    throw new PabstError(
       "existential quantifiers (∃ / exists) are not supported: property-based " +
         "testing samples inputs, so it can refute ∀ with a counterexample but cannot " +
         "soundly confirm ∃ (a bounded/exhaustive mode would be needed)",
@@ -18,7 +19,7 @@ export function parsePrefix(formula: string): ParsedPrefix {
   }
   const m = FORALL.exec(formula);
   if (!m) {
-    throw new Error(
+    throw new PabstError(
       `expected 'forall' (or ∀) at start of property: ${formula.trim().slice(0, 60)}`,
     );
   }
@@ -43,7 +44,7 @@ export function parsePrefix(formula: string): ParsedPrefix {
       }
     }
     if (depth !== 0)
-      throw new Error(
+      throw new PabstError(
         `unbalanced parentheses in binder group: ${formula.slice(start)}`,
       );
     binders.push(...parseBinderGroup(formula.slice(start + 1, j - 1)));
@@ -51,42 +52,42 @@ export function parsePrefix(formula: string): ParsedPrefix {
   }
 
   if (binders.length === 0) {
-    throw new Error(
+    throw new PabstError(
       `expected at least one binder group '(x: domain)' after forall`,
     );
   }
 
   while (i < formula.length && /\s/.test(formula[i]!)) i++;
   if (formula[i] !== ",") {
-    throw new Error(
+    throw new PabstError(
       `expected ',' separating binders from body, got: ${formula.slice(i, i + 60)}`,
     );
   }
   i++;
   const body = formula.slice(i).trim();
-  if (body.length === 0) throw new Error(`property body is empty`);
+  if (body.length === 0) throw new PabstError(`property body is empty`);
   return { binders, body };
 }
 
 function parseBinderGroup(group: string): Binder[] {
   const colon = group.indexOf(":");
   if (colon === -1)
-    throw new Error(
+    throw new PabstError(
       `binder group missing ':' — expected '(x: domain)', got: (${group})`,
     );
   const varsPart = group.slice(0, colon).trim();
   const domainPart = group.slice(colon + 1).trim();
   if (!isDomain(domainPart)) {
-    throw new Error(
+    throw new PabstError(
       `unknown generation domain '${domainPart}' — valid domains: int, nat, number, boolean, string, bigint`,
     );
   }
   const names = varsPart.split(/\s+/).filter(Boolean);
   if (names.length === 0)
-    throw new Error(`binder group has no variable names: (${group})`);
+    throw new PabstError(`binder group has no variable names: (${group})`);
   for (const n of names) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
-      throw new Error(`invalid binder variable name '${n}'`);
+      throw new PabstError(`invalid binder variable name '${n}'`);
   }
   return names.map((varName) => ({ varName, domain: domainPart }));
 }

@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { Formula } from "./formula-ast.js";
 import { lexFormula, type FToken } from "./formula-lexer.js";
+import { PabstError } from "./errors.js";
 
 export function parseBody(body: string): Formula {
   const toks = lexFormula(body);
@@ -9,12 +10,14 @@ export function parseBody(body: string): Formula {
 
 function parseTokens(toks: FToken[], src: string): Formula {
   if (toks.length === 0)
-    throw new Error("empty operand: a connective is missing a side");
+    throw new PabstError("empty operand: a connective is missing a side");
 
   // ↔ (loosest, non-associative)
   const iff = splitTop(toks, "iff");
   if (iff.length > 2)
-    throw new Error("chained ↔ is ambiguous: parenthesize, e.g. (a ↔ b) ↔ c");
+    throw new PabstError(
+      "chained ↔ is ambiguous: parenthesize, e.g. (a ↔ b) ↔ c",
+    );
   if (iff.length === 2) {
     return {
       kind: "iff",
@@ -95,7 +98,7 @@ function whollyWrapped(toks: FToken[]): boolean {
 function makeAtom(toks: FToken[], src: string): Formula {
   const text = src.slice(toks[0]!.start, toks[toks.length - 1]!.end).trim();
   if (text.length === 0)
-    throw new Error("empty operand: a connective is missing a side");
+    throw new PabstError("empty operand: a connective is missing a side");
   enforceLeafRule(text);
   return { kind: "atom", text };
 }
@@ -114,12 +117,12 @@ function enforceLeafRule(text: string): void {
   while (ts.isParenthesizedExpression(expr)) expr = expr.expression;
   if (ts.isBinaryExpression(expr)) {
     if (expr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
-      throw new Error(
+      throw new PabstError(
         `use ∧ for conjunction at the property's top level, not JS && (in: ${text})`,
       );
     }
     if (expr.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
-      throw new Error(
+      throw new PabstError(
         `use ∨ for disjunction at the property's top level, not JS || (in: ${text})`,
       );
     }
@@ -128,7 +131,7 @@ function enforceLeafRule(text: string): void {
     ts.isPrefixUnaryExpression(expr) &&
     expr.operator === ts.SyntaxKind.ExclamationToken
   ) {
-    throw new Error(
+    throw new PabstError(
       `use ¬ for negation at the property's top level, not JS ! (in: ${text})`,
     );
   }
