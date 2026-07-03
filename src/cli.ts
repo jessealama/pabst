@@ -76,8 +76,6 @@ export function main(argv: string[] = process.argv.slice(2)): number {
 
   if (command === "gen") return 0;
 
-  // Capture vitest's machine-readable output instead of inheriting its full
-  // reporter; runTests assembles our own JSON envelope from it.
   const result = runTests(".pabst", {
     version,
     startedAt,

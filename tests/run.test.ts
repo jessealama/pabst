@@ -2,28 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { runTests, RESULTS_FILE } from "../src/run.js";
-import type { RunMeta } from "../src/envelope.js";
-import { ISSUE_SENTINEL, type Issue } from "../src/issue.js";
+import { ISSUE_SENTINEL } from "../src/issue.js";
+import { META, FALSIFIED } from "./helpers/fixtures.js";
 
 const repoRoot = process.cwd();
-
-// Envelope meta is echoed through verbatim; these values just need to be
-// recognizable in the output.
-const META: RunMeta = {
-  version: "0.0.0-test",
-  startedAt: "2026-07-03T00:00:00.000Z",
-  cwd: "/repo",
-  seed: 42,
-  generated: 1,
-};
-
-const ISSUE: Issue = {
-  file: "a.ts",
-  function: "f",
-  property: "p",
-  kind: "falsified",
-  counterexample: { x: 1 },
-};
 
 // The spawned vitest resolves its binary by walking up node_modules from cwd,
 // so these projects live inside the repo tree (gitignored under .pabst/), not
@@ -41,7 +23,7 @@ const brokenDir = path.join(workDir, "broken");
 const SAMPLE_SPEC = `import { it, expect } from "vitest";
 it("passes", () => { expect(1).toBe(1); });
 it("fails", () => {
-  throw new Error(${JSON.stringify(ISSUE_SENTINEL + JSON.stringify(ISSUE))});
+  throw new Error(${JSON.stringify(ISSUE_SENTINEL + JSON.stringify(FALSIFIED))});
 });
 `;
 
@@ -73,11 +55,6 @@ describe("runTests", () => {
       `throw new Error("boom: config exploded");\n`,
       "utf8",
     );
-    fs.writeFileSync(
-      path.join(crashDir, "sample.spec.ts"),
-      SAMPLE_SPEC,
-      "utf8",
-    );
     // A spec that throws at import time: vitest survives to write results,
     // but with success:false and zero counted test failures.
     fs.mkdirSync(brokenDir, { recursive: true });
@@ -107,10 +84,50 @@ describe("runTests", () => {
         ...META,
         passed: 1,
         failed: 1,
-        issues: [ISSUE],
+        issues: [FALSIFIED],
       });
     },
   );
+
+  it("writes results to a caller-provided path", { timeout: 60000 }, () => {
+    const result = inDir(okDir, () =>
+      runTests(".", META, "custom-results.json"),
+    );
+    expect(result.kind).toBe("completed");
+    expect(fs.existsSync(path.join(okDir, "custom-results.json"))).toBe(true);
+  });
+
+  it("reports no-results when the stale results file cannot be cleared", () => {
+    const result = inDir(okDir, () => {
+      fs.rmSync(RESULTS_FILE, { force: true });
+      fs.mkdirSync(RESULTS_FILE, { recursive: true });
+      try {
+        return runTests(".", META);
+      } finally {
+        fs.rmSync(RESULTS_FILE, { recursive: true, force: true });
+      }
+    });
+    expect(result.kind).toBe("no-results");
+    if (result.kind !== "no-results") return;
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(RESULTS_FILE);
+  });
+
+  it("surfaces the spawn error when vitest cannot be launched", () => {
+    const prevPath = process.env.PATH;
+    const result = inDir(okDir, () => {
+      process.env.PATH = "";
+      try {
+        return runTests(".", META);
+      } finally {
+        process.env.PATH = prevPath;
+      }
+    });
+    expect(result.kind).toBe("no-results");
+    if (result.kind !== "no-results") return;
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("npx");
+  });
 
   it(
     "reports a broken run when a test file fails to load",
@@ -129,8 +146,6 @@ describe("runTests", () => {
     { timeout: 60000 },
     () => {
       const result = inDir(crashDir, () => {
-        // A stale results file from an earlier run must not be mistaken for
-        // this run's output.
         fs.mkdirSync(path.dirname(RESULTS_FILE), { recursive: true });
         fs.writeFileSync(
           RESULTS_FILE,

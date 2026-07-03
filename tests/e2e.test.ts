@@ -3,9 +3,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { generate } from "../src/codegen.js";
 import { runTests } from "../src/run.js";
-import type { RunMeta } from "../src/envelope.js";
 import type { Envelope } from "../src/issue.js";
 import { expectValidIssue } from "./helpers/issue-schema.js";
+import { META } from "./helpers/fixtures.js";
 
 const root = process.cwd();
 const passSrc = path.join(root, "tests/fixtures/e2e/pass.ts");
@@ -43,20 +43,12 @@ function clean(): void {
   fs.rmSync(genDir, { recursive: true, force: true });
 }
 
-// These tests assert on counts and issues, which come from the vitest run
-// itself; the run metadata is echoed through the envelope verbatim, so
-// placeholder values suffice.
-const META: RunMeta = {
-  version: "e2e",
-  startedAt: "1970-01-01T00:00:00.000Z",
-  cwd: root,
-  seed: 0,
-  generated: 1,
-};
+// A suite-private results file: the CLI's real .pabst/.last-run.json must
+// survive a run of this suite untouched.
+const E2E_RESULTS = ".pabst/.e2e-run.json";
 
-/** Run one generated test file through the shipped run seam. */
 function run(file: string): Envelope {
-  const result = runTests(file, META);
+  const result = runTests(file, META, E2E_RESULTS);
   if (result.kind !== "completed") {
     throw new Error(`vitest run failed: ${JSON.stringify(result)}`);
   }

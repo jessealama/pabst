@@ -19,30 +19,37 @@ export type RunResult =
  * envelope, return vitest's raw output and exit status so the caller can
  * surface the underlying error.
  */
-export function runTests(target: string, meta: RunMeta): RunResult {
+export function runTests(
+  target: string,
+  meta: RunMeta,
+  resultsFile: string = RESULTS_FILE,
+): RunResult {
   // A stale results file from a previous run must not be mistaken for this
   // run's output when vitest dies before writing one.
-  rmSync(RESULTS_FILE, { force: true });
+  try {
+    rmSync(resultsFile, { force: true });
+  } catch (e) {
+    return {
+      kind: "no-results",
+      status: 1,
+      stdout: "",
+      stderr: `pabst: cannot clear stale results file ${resultsFile}: ${e instanceof Error ? e.message : String(e)}\n`,
+    };
+  }
   const res = spawnSync(
     "npx",
-    [
-      "vitest",
-      "run",
-      target,
-      "--reporter=json",
-      `--outputFile=${RESULTS_FILE}`,
-    ],
+    ["vitest", "run", target, "--reporter=json", `--outputFile=${resultsFile}`],
     { encoding: "utf8" },
   );
   let json;
   try {
-    json = JSON.parse(readFileSync(RESULTS_FILE, "utf8"));
+    json = JSON.parse(readFileSync(resultsFile, "utf8"));
   } catch {
     return {
       kind: "no-results",
       status: res.status ?? 1,
       stdout: res.stdout ?? "",
-      stderr: res.stderr ?? "",
+      stderr: (res.stderr ?? "") + (res.error ? `${String(res.error)}\n` : ""),
     };
   }
   // An unhealthy run vitest couldn't attribute to any test (e.g. a test file
