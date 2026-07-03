@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseBody } from "../src/formula-parser.js";
 import { lowerTop } from "../src/lower.js";
+import { expectPabstError } from "./helpers/errors.js";
 
 // Lower the parsed AST to a string so assertions read clearly.
 const lo = (s: string) => lowerTop(parseBody(s));
@@ -55,18 +56,18 @@ describe("parseBody — atoms keep their JS", () => {
 
 describe("parseBody — errors", () => {
   it("rejects a chained ↔", () => {
-    expect(() => parseBody("a ↔ b ↔ c")).toThrow(/parenthesi[sz]e/i);
+    expectPabstError(() => parseBody("a ↔ b ↔ c"), /parenthesi[sz]e/i);
   });
   it("rejects a top-level JS && with a glyph hint", () => {
-    expect(() => parseBody("a && b")).toThrow(/use ∧/);
+    expectPabstError(() => parseBody("a && b"), /use ∧/);
   });
   it("rejects a top-level JS || with a glyph hint", () => {
-    expect(() => parseBody("a || b")).toThrow(/use ∨/);
+    expectPabstError(() => parseBody("a || b"), /use ∨/);
   });
   it("rejects a top-level prefix ! with a glyph hint", () => {
-    expect(() => parseBody("!p")).toThrow(/use ¬/);
+    expectPabstError(() => parseBody("!p"), /use ¬/);
   });
   it("rejects an empty operand", () => {
-    expect(() => parseBody("a ∧ ")).toThrow(/empty/i);
+    expectPabstError(() => parseBody("a ∧ "), /empty/i);
   });
 });

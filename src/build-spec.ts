@@ -17,6 +17,7 @@ export function buildSpecs(file: string): PropertySpec[] {
       if (e instanceof PabstError) {
         throw new PabstError(
           `${file}:${a.line}: @ensures{${a.propertyName}}: ${e.message}`,
+          { cause: e },
         );
       }
       throw e;
@@ -38,13 +39,7 @@ function buildSpec(
   for (const atom of collectAtoms(ast)) {
     for (const id of freeIdentifiers(atom)) idents.add(id);
   }
-  const { freeExports } = classify(
-    idents,
-    boundVars,
-    exports,
-    a.propertyName,
-    file,
-  );
+  const { freeExports } = classify(idents, boundVars, exports);
   return {
     name: a.propertyName,
     functionName: a.functionName,

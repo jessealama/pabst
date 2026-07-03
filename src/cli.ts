@@ -34,12 +34,18 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     return 2;
   }
 
+  // Same policy as compilation below: user-facing errors (PabstError) map to
+  // the documented exit-2 error mode; anything else is an internal bug and
+  // crashes loudly.
   let seed: number;
   try {
     seed = values.seed !== undefined ? parseSeed(values.seed) : randomSeed();
   } catch (e) {
-    console.error(`error: ${(e as Error).message}`);
-    return 2;
+    if (e instanceof PabstError) {
+      console.error(`error: ${e.message}`);
+      return 2;
+    }
+    throw e;
   }
 
   const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter((f) =>
