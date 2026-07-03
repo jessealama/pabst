@@ -58,9 +58,7 @@ const META: RunMeta = {
 function run(file: string): Envelope {
   const result = runTests(file, META);
   if (result.kind !== "completed") {
-    throw new Error(
-      `vitest produced no results:\n${result.stdout}${result.stderr}`,
-    );
+    throw new Error(`vitest run failed: ${JSON.stringify(result)}`);
   }
   return result.envelope;
 }

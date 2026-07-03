@@ -29,13 +29,14 @@ const ISSUE: Issue = {
 // so these projects live inside the repo tree (gitignored under .pabst/), not
 // os.tmpdir(). The spawned vitest also inherits the nearest config walking up
 // from cwd, so each fixture pins its own: `ok` an empty one (restoring
-// vitest's default include, which picks up *.spec.ts), `crash` a throwing
-// one. Fixture tests are *.spec.ts so the OUTER suite's include
-// (tests/**/*.test.ts, .pabst/**/*.test.ts) never collects a leftover copy
-// from a crashed run.
+// vitest's default include, which picks up *.spec.ts), `broken` the same
+// empty one, `crash` a throwing one. Fixture tests are *.spec.ts so the OUTER
+// suite's include (tests/**/*.test.ts, .pabst/**/*.test.ts) never collects a
+// leftover copy from a crashed run.
 const workDir = path.join(repoRoot, ".pabst", "runtest");
 const okDir = path.join(workDir, "ok");
 const crashDir = path.join(workDir, "crash");
+const brokenDir = path.join(workDir, "broken");
 
 const SAMPLE_SPEC = `import { it, expect } from "vitest";
 it("passes", () => { expect(1).toBe(1); });
@@ -77,6 +78,19 @@ describe("runTests", () => {
       SAMPLE_SPEC,
       "utf8",
     );
+    // A spec that throws at import time: vitest survives to write results,
+    // but with success:false and zero counted test failures.
+    fs.mkdirSync(brokenDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(brokenDir, "vitest.config.ts"),
+      `import { defineConfig } from "vitest/config";\nexport default defineConfig({});\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(brokenDir, "sample.spec.ts"),
+      `throw new Error("boom: import exploded");\n`,
+      "utf8",
+    );
   });
   afterAll(() => {
     fs.rmSync(workDir, { recursive: true, force: true });
@@ -95,6 +109,18 @@ describe("runTests", () => {
         failed: 1,
         issues: [ISSUE],
       });
+    },
+  );
+
+  it(
+    "reports a broken run when a test file fails to load",
+    { timeout: 60000 },
+    () => {
+      const result = inDir(brokenDir, () => runTests(".", META));
+      expect(result.kind).toBe("broken-run");
+      if (result.kind !== "broken-run") return;
+      expect(result.status).not.toBe(0);
+      expect(result.messages.join("\n")).toContain("boom: import exploded");
     },
   );
 

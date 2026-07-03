@@ -87,11 +87,12 @@ export function main(argv: string[] = process.argv.slice(2)): number {
   });
 
   if (result.kind === "no-results") {
-    // No parseable results (e.g. vitest died on startup). Surface vitest's raw
-    // output on stderr so the underlying error isn't swallowed; emit no
-    // envelope, because the run produced no trustworthy results.
     process.stderr.write(result.stdout);
     process.stderr.write(result.stderr);
+    return result.status;
+  }
+  if (result.kind === "broken-run") {
+    for (const m of result.messages) console.error(`error: ${m}`);
     return result.status;
   }
 
