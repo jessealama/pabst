@@ -1,11 +1,11 @@
-# pabst
+# Pabst: A blue-ribbon approach to **P**roperty-**B**ased **T**esting
 
-**p**roperty-**b**ased **t**esting from `@ensures` annotations, powered by [fast-check](https://fast-check.dev/).
+Annotate your functions with properties they're supposed to have, then try to invalidate them with [fast-check](https://fast-check.dev/).
 
-Annotate a function with a quantified property in a JSDoc comment, run one command,
-and get either "cases passed" or a shrunk counterexample.
+Put your properties your functions have a JSDoc comment, run Pabst,
+and get either "cases passed" or a counterexample that shows the property doesn't hold.
 
-Look at this code. We're trying to assert that the value of the function is
+_Example_ Look at this code. We're trying to assert that the value of the function is
 non-zero provided the second argument is an integer. Can you spot the error?
 
 ```ts
@@ -25,17 +25,22 @@ operands: `foo(-1n, 0)` is `-1 + 0 + 1 === 0`. You don't have to spot that —
 
 ## Philosophy
 
-pabst is a property-based testing tool. Instead of checking your function
-against a handful of hand-picked examples, it generates many random inputs and
-works hard to **refute** the property you attached; when it succeeds, it
-shrinks the failure to a small, readable counterexample. One thing should be
-understood, though: failing to invalidate a property — even across many runs —
-is no _proof_ that the property holds. It is evidence that it holds, but the
-property might still be false on inputs the generator never tried. If your
-goal is to prove the absence of counterexamples, you need proof-based tools
-such as [Thales](https://github.com/jessealama/thales). That said,
-property-based testing is a powerful technique that exposes a lot of bugs for
-very little effort, and it sits comfortably alongside proof-based approaches.
+Pabst is a property-based testing tool. Instead of checking
+your function against a handful of hand-picked examples,
+pabst (delegating to `fast-check`) generates many random
+inputs and works hard to **refute** the property you
+attached; when it succeeds, it shrinks the failure to a
+small, readable counterexample. One thing should be
+understood, though: failing to invalidate a property — even
+across many runs — is no _proof_ that the property holds. It
+is evidence that it holds, but the property might still be
+false on inputs the generator never tried. If your goal is
+to prove the absence of counterexamples, you need
+proof-based tools such as
+[Thales](https://github.com/jessealama/thales). That said,
+property-based testing is a powerful technique that exposes
+a lot of bugs for very little effort, and it sits
+comfortably alongside proof-based approaches.
 
 ## Usage
 
@@ -45,13 +50,9 @@ pabst test --seed <n> <files-or-globs> # reproduce a prior run's generation
 pabst gen  <files-or-globs>            # generate only; run your own vitest against .pabst/
 ```
 
-pabst writes the test files it generates to a `.pabst/` directory in your
+Pabst writes the test files it generates to a `.pabst/` directory in your
 project. Those files are regenerated on every run, so there is no reason to
 commit them — add `.pabst/` to your `.gitignore`:
-
-```bash
-echo '.pabst/' >> .gitignore
-```
 
 ## Output
 
@@ -97,8 +98,8 @@ issue, and `2` on usage errors.
 
 ## Grammar
 
-A property is a universally quantified formula in pabst's **logic surface**.
-Glyphs are canonical; ASCII fallbacks are accepted.
+A property is a universally quantified formula in Pabst's **logic surface**.
+Non-ASCII symbols are supposed; ASCII fallbacks are available.
 
 ```ts
 /**
@@ -124,11 +125,6 @@ Glyphs are canonical; ASCII fallbacks are accepted.
 - **Biconditional** `↔` is non-associative (parenthesise chains) and is _not_ a
   discard — it lowers to boolean equality.
 - **Scoping:** every symbol an atom references must be `export`ed from its module.
-
-pabst evaluates properties in a free, left-sequential, three-valued logic
-(McCarthy / short-circuit logic): `∧`/`∨`/`→` short-circuit left-to-right, and
-an atom that throws is the third value. The `→` discard is a sampling control,
-not a truth value; `∀` is a sampled (bounded) quantifier.
 
 Each `@ensures{name}` becomes one issue (keyed by file, function, and property
 name) if it fails. Generated files land in the `.pabst/` directory (see
