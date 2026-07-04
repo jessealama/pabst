@@ -2,7 +2,7 @@
 
 Annotate your functions with properties they're supposed to have, then try to invalidate them with [fast-check](https://fast-check.dev/).
 
-Put your properties your functions have a JSDoc comment, run Pabst,
+Put the properties your functions should have in a JSDoc comment, run Pabst,
 and get either "cases passed" or a counterexample that shows the property doesn't hold.
 
 _Example_ Look at this code. We're trying to assert that the value of the function is
@@ -42,6 +42,15 @@ property-based testing is a powerful technique that exposes
 a lot of bugs for very little effort, and it sits
 comfortably alongside proof-based approaches.
 
+## Installation
+
+```bash
+npm install --save-dev pabst
+```
+
+Requires Node 24+. Pabst bundles its own [fast-check](https://fast-check.dev/)
+and [vitest](https://vitest.dev/), so nothing else is needed.
+
 ## Usage
 
 ```bash
@@ -53,6 +62,10 @@ pabst gen  <files-or-globs>            # generate only; run your own vitest agai
 Pabst writes the test files it generates to a `.pabst/` directory in your
 project. Those files are regenerated on every run, so there is no reason to
 commit them — add `.pabst/` to your `.gitignore`:
+
+```gitignore
+.pabst/
+```
 
 ## Output
 
@@ -101,7 +114,7 @@ symbol, which are reported as a one-line message on stderr.
 ## Grammar
 
 A property is a universally quantified formula in Pabst's **logic surface**.
-Non-ASCII symbols are supposed; ASCII fallbacks are available.
+Non-ASCII symbols are the canonical form; ASCII fallbacks are available.
 
 ```ts
 /**
