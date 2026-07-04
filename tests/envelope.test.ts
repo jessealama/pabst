@@ -3,17 +3,9 @@ import {
   buildEnvelope,
   collectIssues,
   type VitestJson,
-  type RunMeta,
 } from "../src/envelope.js";
 import { ISSUE_SENTINEL, type Issue } from "../src/issue.js";
-
-const META: RunMeta = {
-  version: "0.5.0",
-  startedAt: "2026-06-26T00:00:00.000Z",
-  cwd: "/repo",
-  seed: 12345,
-  generated: 3,
-};
+import { META, FALSIFIED } from "./helpers/fixtures.js";
 
 function failed(issue: Issue): { status: string; failureMessages: string[] } {
   return {
@@ -34,13 +26,6 @@ function vitestJson(over: Partial<VitestJson>): VitestJson {
   };
 }
 
-const FALSIFIED: Issue = {
-  file: "a.ts",
-  function: "f",
-  property: "p",
-  kind: "falsified",
-  counterexample: { x: 1 },
-};
 const THREW: Issue = {
   file: "a.ts",
   function: "f",
@@ -100,11 +85,7 @@ describe("buildEnvelope", () => {
       testResults: [{ assertionResults: [failed(FALSIFIED)] }],
     });
     expect(buildEnvelope(META, json)).toEqual({
-      version: "0.5.0",
-      startedAt: "2026-06-26T00:00:00.000Z",
-      cwd: "/repo",
-      seed: 12345,
-      generated: 3,
+      ...META,
       passed: 2,
       failed: 1,
       issues: [FALSIFIED],

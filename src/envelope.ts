@@ -6,6 +6,8 @@ export interface AssertionResult {
   failureMessages: string[];
 }
 export interface FileResult {
+  status?: string;
+  message?: string;
   assertionResults: AssertionResult[];
 }
 export interface VitestJson {

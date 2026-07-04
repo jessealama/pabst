@@ -2,6 +2,7 @@ import { describe, it, expect, afterAll, beforeAll, beforeEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { runMain, useTempProject } from "./helpers/cli.js";
+import { expectValidIssue } from "./helpers/issue-schema.js";
 
 const repoRoot = process.cwd();
 
@@ -240,15 +241,10 @@ describe("cli test command (README usage claims)", () => {
       expect(code).toBe(1);
       const env = JSON.parse(stdout[0]!);
       expect(env).toMatchObject({ generated: 1, passed: 0, failed: 1 });
-      expect(env.issues).toEqual([
-        {
-          file: "bad.ts",
-          function: "bad",
-          property: "negative",
-          kind: "falsified",
-          counterexample: { n: 0 },
-        },
-      ]);
+      // The exact issue contents are pinned by the envelope and run-seam
+      // suites; here only the CLI-level claim matters.
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
     },
   );
 
