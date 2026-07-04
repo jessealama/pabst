@@ -1,5 +1,6 @@
+#!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { globSync, readFileSync } from "node:fs";
+import { globSync, readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
 import { PabstError } from "./errors.js";
@@ -13,17 +14,54 @@ function readVersion(): string {
   return JSON.parse(readFileSync(url, "utf8")).version as string;
 }
 
+const USAGE = "usage: pabst <test|gen> [--seed <n>] <files-or-globs...>";
+
+const HELP = `${USAGE}
+
+commands:
+  test  generate property tests from @ensures annotations, run them, and
+        print a JSON report to stdout
+  gen   generate only; run your own vitest against .pabst/
+
+options:
+  --seed <n>  reproduce a prior run's generation (n is echoed in the report)
+  -h, --help  show this help`;
+
 export function main(argv: string[] = process.argv.slice(2)): number {
-  const { positionals, values } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { seed: { type: "string" } },
-  });
+  // parseArgs throws on unknown options and the like — usage errors, which
+  // map to the documented exit-2 mode; anything else crashes loudly.
+  let positionals: string[];
+  let values: { seed?: string; help?: boolean };
+  try {
+    ({ positionals, values } = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        seed: { type: "string" },
+        help: { type: "boolean", short: "h" },
+      },
+    }));
+  } catch (e) {
+    if (
+      e instanceof TypeError &&
+      "code" in e &&
+      typeof e.code === "string" &&
+      e.code.startsWith("ERR_PARSE_ARGS_")
+    ) {
+      console.error(USAGE);
+      return 2;
+    }
+    throw e;
+  }
+  if (values.help) {
+    console.log(HELP);
+    return 0;
+  }
   const command = positionals[0];
   const patterns = positionals.slice(1);
 
   if (command !== "test" && command !== "gen") {
-    console.error("usage: pabst <test|gen> [--seed <n>] <files-or-globs...>");
+    console.error(USAGE);
     return 2;
   }
   if (patterns.length === 0) {
@@ -98,9 +136,12 @@ export function main(argv: string[] = process.argv.slice(2)): number {
   return result.envelope.failed > 0 ? 1 : 0;
 }
 
+// npm installs the bin as a symlink (node_modules/.bin/pabst -> this file).
+// Node resolves the main module to its realpath, but argv[1] keeps the
+// symlink path, so argv[1] must be realpath'd before comparing.
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
   process.exit(main());
 }
