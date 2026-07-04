@@ -47,8 +47,10 @@ describe("emit", () => {
   });
 
   it("imports the reporter from the runtime library once", () => {
+    // "pabst-check" is the published package name (the self-reference the
+    // generated tests resolve), distinct from the `pabst` bin name.
     expect(out).toContain(
-      'import { report as __pabstReport, bool as __bool } from "pabst/runtime";',
+      'import { report as __pabstReport, bool as __bool } from "pabst-check/runtime";',
     );
     // no inline copy of the helper
     expect(out).not.toContain("function __pabstReport(");
@@ -59,7 +61,7 @@ describe("emit", () => {
       ".pabst/foo.pabst.test.ts",
       42,
     );
-    const occurrences = multi.split('from "pabst/runtime"').length - 1;
+    const occurrences = multi.split('from "pabst-check/runtime"').length - 1;
     expect(occurrences).toBe(1);
   });
 });

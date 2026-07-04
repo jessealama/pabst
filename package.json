@@ -1,5 +1,5 @@
 {
-  "name": "pabst",
+  "name": "pabst-check",
   "version": "0.5.0",
   "description": "Property-based testing from @ensures annotations, powered by fast-check.",
   "repository": {
