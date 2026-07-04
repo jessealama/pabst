@@ -27,6 +27,29 @@ describe("cli main", () => {
     expect(runMain(["gen"]).code).toBe(2);
   });
 
+  it("returns 2 with usage on an unknown option", () => {
+    const { code, stderr } = runMain(["--halp"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toContain("usage: pabst");
+  });
+
+  it("prints help on --help and exits 0", () => {
+    const { code, stdout, stderr } = runMain(["--help"]);
+    expect(code).toBe(0);
+    expect(stderr).toEqual([]);
+    const help = stdout.join("\n");
+    expect(help).toContain("usage: pabst");
+    expect(help).toContain("--seed");
+    expect(help).toContain("--help");
+  });
+
+  it("prints the same help on -h", () => {
+    const { code, stdout } = runMain(["-h"]);
+    expect(code).toBe(0);
+    expect(stdout).toEqual(runMain(["--help"]).stdout);
+  });
+
   it("returns 2 on a non-integer --seed", () => {
     expect(runMain(["gen", "--seed", "4.2", "baz.ts"]).code).toBe(2);
   });
