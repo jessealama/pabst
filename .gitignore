@@ -3,3 +3,5 @@ dist/
 .pabst/
 coverage/
 *.log
+.stryker-tmp/
+reports/
