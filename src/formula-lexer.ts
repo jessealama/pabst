@@ -2,14 +2,7 @@ import ts from "typescript";
 import { PabstError } from "./errors.js";
 
 export type FTokenKind =
-  | "not"
-  | "and"
-  | "or"
-  | "implies"
-  | "iff"
-  | "open"
-  | "close"
-  | "js";
+  "not" | "and" | "or" | "implies" | "iff" | "open" | "close" | "js";
 
 export interface FToken {
   kind: FTokenKind;
