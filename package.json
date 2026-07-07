@@ -1,6 +1,9 @@
 {
-  "name": "pabst-check",
+  "name": "@jessealama/pabst",
   "version": "0.5.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Property-based testing from @ensures annotations, powered by fast-check.",
   "repository": {
     "type": "git",
@@ -25,13 +28,7 @@
   "bin": {
     "pabst": "dist/cli.js"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
     "./runtime": {
       "types": "./dist/runtime.d.ts",
       "default": "./dist/runtime.js"

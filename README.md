@@ -45,10 +45,10 @@ comfortably alongside proof-based approaches.
 ## Installation
 
 ```bash
-npm install --save-dev pabst-check
+npm install --save-dev @jessealama/pabst
 ```
 
-The package is `pabst-check`; the command it installs is `pabst`.
+The package is `@jessealama/pabst`; the command it installs is `pabst`.
 
 Requires Node 24+. Pabst bundles its own [fast-check](https://fast-check.dev/)
 and [vitest](https://vitest.dev/), so nothing else is needed.

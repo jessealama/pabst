@@ -22,7 +22,7 @@ export function emit(
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
   lines.push(
-    `import { report as __pabstReport, bool as __bool } from "pabst-check/runtime";`,
+    `import { report as __pabstReport, bool as __bool } from "@jessealama/pabst/runtime";`,
   );
   lines.push(`import * as __M from "${rel}";`);
   if (allExports.length > 0)
