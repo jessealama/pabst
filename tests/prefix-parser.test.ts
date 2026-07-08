@@ -186,4 +186,15 @@ describe("parsePrefix — interval constraints", () => {
       /open\/half-open intervals/,
     );
   });
+
+  it("does not hint about open intervals when 'in (' is just body text", () => {
+    let message = "";
+    try {
+      parsePrefix("forall (x: int, contains(x) && x in (whatever");
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/unbalanced parentheses/);
+    expect(message).not.toMatch(/open\/half-open/);
+  });
 });

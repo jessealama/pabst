@@ -18,6 +18,28 @@ describe("parseRange — accepted", () => {
     });
   });
 
+  it("strips redundant leading zeros, which would be SyntaxErrors when emitted", () => {
+    expect(parseRange("[010, 20]", "int")).toEqual({ min: "10", max: "20" });
+    expect(parseRange("[090, 100]", "nat")).toEqual({ min: "90", max: "100" });
+    expect(parseRange("[010n, 20n]", "bigint")).toEqual({
+      min: "10",
+      max: "20",
+    });
+    expect(parseRange("[008.5, 9]", "number")).toEqual({
+      min: "8.5",
+      max: "9",
+    });
+    expect(parseRange("[00, 5]", "int")).toEqual({ min: "0", max: "5" });
+  });
+
+  it("keeps -0 intact when stripping leading zeros", () => {
+    expect(parseRange("[-00, 0]", "number")).toEqual({ min: "-0", max: "0" });
+  });
+
+  it("strips a leading + from number endpoints like the other domains", () => {
+    expect(parseRange("[+0.5, 1]", "number")).toEqual({ min: "0.5", max: "1" });
+  });
+
   it("parses a degenerate single-point interval", () => {
     expect(parseRange("[5, 5]", "int")).toEqual({ min: "5", max: "5" });
   });
@@ -28,6 +50,11 @@ describe("parseRange — accepted", () => {
       max: "100",
     });
     expect(parseRange("[0, 100]", "bigint")).toEqual({ min: "0", max: "100" });
+  });
+
+  it("accepts intervals where -0 is a genuine lower bound", () => {
+    expect(parseRange("[-0, 0]", "number")).toEqual({ min: "-0", max: "0" });
+    expect(parseRange("[-0, -0]", "number")).toEqual({ min: "-0", max: "-0" });
   });
 
   it("accepts a negative-only nat bound of zero", () => {
@@ -42,6 +69,17 @@ describe("parseRange — rejected", () => {
       () => parseRange("[0.2, 0.1]", "number"),
       /empty interval/,
     );
+  });
+
+  it("rejects [0, -0]-style intervals, following fast-check's -0 < 0 ordering", () => {
+    expectPabstError(() => parseRange("[0, -0]", "number"), /empty interval/);
+    expectPabstError(() => parseRange("[+0, -0]", "number"), /empty interval/);
+    // 1e-400 underflows to +0, so this is [0, -0] in disguise.
+    expectPabstError(
+      () => parseRange("[1e-400, -0]", "number"),
+      /empty interval/,
+    );
+    expectPabstError(() => parseRange("[0, -0]", "number"), /-0 below 0/);
   });
 
   it("rejects negative nat bounds", () => {
@@ -92,6 +130,17 @@ describe("parseRange — rejected", () => {
   it("rejects a missing or extra endpoint", () => {
     expectPabstError(() => parseRange("[1]", "int"), /two endpoints/);
     expectPabstError(() => parseRange("[1, 2, 3]", "int"), /two endpoints/);
+  });
+
+  it("rejects trailing text after the interval without blaming open bounds", () => {
+    let message = "";
+    try {
+      parseRange("[1, 30] oops", "int");
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/unexpected text after interval/);
+    expect(message).not.toMatch(/closed bounds/);
   });
 
   it("rejects text that is not an interval at all", () => {

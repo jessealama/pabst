@@ -10,6 +10,15 @@ export interface ParsedPrefix {
 
 const FORALL = /^\s*(?:forall|∀)\s*/;
 
+const MEMBERSHIP = /∈|\bin\b/;
+
+// An attempted open interval puts '(' right after the membership token in
+// domain position (': number ∈ ('); requiring that context keeps the hint
+// away from unrelated 'in (' text in the property body.
+const OPEN_INTERVAL_ATTEMPT = new RegExp(
+  `:\\s*\\w+\\s*(?:${MEMBERSHIP.source})\\s*\\(`,
+);
+
 export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
     throw new PabstError(
@@ -46,7 +55,7 @@ export function parsePrefix(formula: string): ParsedPrefix {
     }
     if (depth !== 0) {
       const rest = formula.slice(start);
-      const openInterval = /(?:∈|\bin\b)\s*\(/.test(rest)
+      const openInterval = OPEN_INTERVAL_ATTEMPT.test(rest)
         ? " (open/half-open intervals like (0, 1] are not supported; " +
           "use closed bounds [lo, hi])"
         : "";
@@ -86,7 +95,7 @@ function parseBinderGroup(group: string): Binder[] {
   const domainPart = group.slice(colon + 1).trim();
   let domainName = domainPart;
   let rangeText: string | undefined;
-  const mem = /∈|\bin\b/.exec(domainPart);
+  const mem = MEMBERSHIP.exec(domainPart);
   if (mem) {
     domainName = domainPart.slice(0, mem.index).trim();
     rangeText = domainPart.slice(mem.index + mem[0].length).trim();

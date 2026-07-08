@@ -29,11 +29,17 @@ export function parseRange(text: string, domain: Domain): Range {
       `expected interval '[lo, hi]' after ∈, got: ${text || "(nothing)"}`,
     );
   }
-  if (!text.endsWith("]")) {
+  const close = text.indexOf("]");
+  if (close === -1) {
     // A half-open "[1, 30)" loses its ')' to the binder-group scanner,
     // so a missing ']' is the usual symptom of attempted open bounds.
     throw new PabstError(
       `interval is missing its closing ']' (in: ${text}) — ${OPEN_HINT}`,
+    );
+  }
+  if (close !== text.length - 1) {
+    throw new PabstError(
+      `unexpected text after interval: '${text.slice(close + 1).trim()}' (in: ${text})`,
     );
   }
   const parts = text.slice(1, -1).split(",");
@@ -45,7 +51,13 @@ export function parseRange(text: string, domain: Domain): Range {
   const min = parseEndpoint(parts[0]!.trim(), domain);
   const max = parseEndpoint(parts[1]!.trim(), domain);
   if (isEmptyInterval(min, max, domain)) {
-    throw new PabstError(`empty interval: ${min} > ${max} (in: ${text})`);
+    const zeroNote =
+      domain === "number" && Number(min) === 0 && Number(max) === 0
+        ? " — fast-check orders -0 below 0, so this interval contains no values"
+        : "";
+    throw new PabstError(
+      `empty interval: ${min} > ${max} (in: ${text})${zeroNote}`,
+    );
   }
   if (domain === "nat" && BigInt(min) < 0n) {
     throw new PabstError(
@@ -67,30 +79,38 @@ function parseEndpoint(lit: string, domain: Domain): string {
         throw new PabstError(
           `interval endpoint '${lit}' is outside the safe integer range`,
         );
-      return stripPlus(lit);
+      return normalizeLiteral(lit);
     }
     case "bigint": {
       if (!BIGINT_LITERAL.test(lit))
         throw new PabstError(
           `interval endpoint '${lit}' is not an integer literal (domain bigint)`,
         );
-      return stripPlus(lit.endsWith("n") ? lit.slice(0, -1) : lit);
+      return normalizeLiteral(lit.endsWith("n") ? lit.slice(0, -1) : lit);
     }
     default: {
       if (!NUMBER_LITERAL.test(lit) || !Number.isFinite(Number(lit)))
         throw new PabstError(
           `interval endpoint '${lit}' is not a finite number literal`,
         );
-      return lit;
+      return normalizeLiteral(lit);
     }
   }
 }
 
-function stripPlus(lit: string): string {
-  return lit.startsWith("+") ? lit.slice(1) : lit;
+/** Strip a leading '+' and redundant leading zeros: endpoints are emitted
+ * verbatim into an ES module, where '010' is a SyntaxError. The lookahead
+ * keeps a lone (possibly signed) zero intact, so '-0' survives. */
+function normalizeLiteral(lit: string): string {
+  const unsigned = lit.startsWith("+") ? lit.slice(1) : lit;
+  return unsigned.replace(/^(-?)0+(?=\d)/, "$1");
 }
 
 function isEmptyInterval(min: string, max: string, domain: Domain): boolean {
-  if (domain === "number") return Number(min) > Number(max);
-  return BigInt(min) > BigInt(max);
+  if (domain !== "number") return BigInt(min) > BigInt(max);
+  const lo = Number(min);
+  const hi = Number(max);
+  if (lo > hi) return true;
+  // fast-check orders -0 below +0, so [0, -0] is empty for fc.double.
+  return lo === 0 && hi === 0 && Object.is(hi, -0) && !Object.is(lo, -0);
 }
