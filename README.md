@@ -129,6 +129,10 @@ Non-ASCII symbols are the canonical form; ASCII fallbacks are available.
   the body. Lean-style grouping `(x y: int)` is supported. Existential `∃` /
   `exists` is intentionally rejected (PBT cannot soundly confirm existence).
 - **Domains:** `int`, `nat`, `number`, `boolean`, `string`, `bigint`.
+  A numeric domain (`int`, `nat`, `number`, `bigint`) may be constrained to a
+  closed interval: `forall (x: int ∈ [1, 30])` (ASCII fallback: `in`). Both
+  bounds are inclusive and required; open intervals like `[0, 30)` are
+  rejected. A bounded `number` never generates `NaN`.
 - **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
   Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
   Negation `¬` is glyph-only.
