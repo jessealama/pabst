@@ -105,3 +105,85 @@ describe("parsePrefix — existential", () => {
     );
   });
 });
+
+describe("parsePrefix — interval constraints", () => {
+  it("parses ∈ with a closed interval", () => {
+    const r = parsePrefix("forall (x: int ∈ [1, 30]), x <= 30");
+    expect(r.binders).toEqual([
+      { varName: "x", domain: "int", range: { min: "1", max: "30" } },
+    ]);
+    expect(r.body).toBe("x <= 30");
+  });
+
+  it("parses the ASCII 'in' fallback", () => {
+    const r = parsePrefix("forall (x: int in [1, 30]), x <= 30");
+    expect(r.binders).toEqual([
+      { varName: "x", domain: "int", range: { min: "1", max: "30" } },
+    ]);
+  });
+
+  it("applies the interval to every name in a Lean-style group", () => {
+    const r = parsePrefix("forall (x y: int ∈ [1, 30]), x + y >= 2");
+    expect(r.binders).toEqual([
+      { varName: "x", domain: "int", range: { min: "1", max: "30" } },
+      { varName: "y", domain: "int", range: { min: "1", max: "30" } },
+    ]);
+  });
+
+  it("mixes ranged and unranged binder groups", () => {
+    const r = parsePrefix(
+      "forall (x: int ∈ [1, 30]) (s: string), f(x, s) === true",
+    );
+    expect(r.binders).toEqual([
+      { varName: "x", domain: "int", range: { min: "1", max: "30" } },
+      { varName: "s", domain: "string" },
+    ]);
+  });
+
+  it("parses a number interval with decimal endpoints", () => {
+    const r = parsePrefix("forall (x: number ∈ [0.5, 1e6]), x > 0");
+    expect(r.binders).toEqual([
+      { varName: "x", domain: "number", range: { min: "0.5", max: "1e6" } },
+    ]);
+  });
+
+  it("does not mistake the 'in' inside 'bigint' for the membership keyword", () => {
+    const r = parsePrefix("forall (b: bigint), b === b");
+    expect(r.binders).toEqual([{ varName: "b", domain: "bigint" }]);
+  });
+
+  it("rejects an interval on a non-numeric domain", () => {
+    expectPabstError(
+      () => parsePrefix("forall (s: string ∈ [1, 30]), s === s"),
+      /does not support ∈/,
+    );
+  });
+
+  it("rejects an inverted interval", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int ∈ [30, 1]), x === x"),
+      /empty interval/,
+    );
+  });
+
+  it("still rejects an unknown domain when an interval is attached", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: float ∈ [1, 30]), x === x"),
+      /unknown generation domain 'float'/,
+    );
+  });
+
+  it("hints about open intervals for a half-open '[lo, hi)'", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int ∈ [1, 30)), x === x"),
+      /closed bounds/,
+    );
+  });
+
+  it("hints about open intervals when '(lo, hi]' unbalances the group", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: number ∈ (0, 1]), x > 0"),
+      /open\/half-open intervals/,
+    );
+  });
+});
