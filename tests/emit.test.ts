@@ -61,9 +61,8 @@ describe("emit", () => {
       ".pabst/foo.pabst.test.ts",
       42,
     );
-    const occurrences = multi.split(
-      'from "@jessealama/pabst/runtime"',
-    ).length - 1;
+    const occurrences =
+      multi.split('from "@jessealama/pabst/runtime"').length - 1;
     expect(occurrences).toBe(1);
   });
 });
