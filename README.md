@@ -77,7 +77,7 @@ empty `issues` array:
 
 ```json
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "startedAt": "2026-06-26T17:42:03.000Z",
   "cwd": "/path/to/project",
   "seed": 1834592013,
