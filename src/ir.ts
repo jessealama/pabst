@@ -1,8 +1,18 @@
 export type Domain = "int" | "nat" | "number" | "boolean" | "string" | "bigint";
 
+/** Closed interval constraint on a numeric binder. Endpoints are the
+ * user's literal text, kept verbatim so floats are emitted exactly as
+ * written — except a leading `+`, redundant leading zeros, and a bigint
+ * `n` suffix are stripped (lowering re-adds `n` for bigint). */
+export interface Range {
+  min: string;
+  max: string;
+}
+
 export interface Binder {
   varName: string;
   domain: Domain;
+  range?: Range;
 }
 
 export interface PropertySpec {

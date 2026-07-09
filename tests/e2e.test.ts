@@ -24,6 +24,7 @@ const parseRoundTripSrc = path.join(
   "tests/fixtures/e2e/parse-round-trip.ts",
 );
 const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
+const boundedSrc = path.join(root, "tests/fixtures/e2e/bounded.ts");
 const exhaustedSrc = path.join(
   root,
   "tests/fixtures/e2e/precondition-exhausted.ts",
@@ -258,6 +259,18 @@ describe("end-to-end", () => {
         kind: "exhausted",
       });
       expect(env.issues[0]!.counterexample).toBeUndefined();
+    },
+  );
+
+  it(
+    "interval-bounded binders only generate in-range values",
+    { timeout: 30000 },
+    () => {
+      const [r] = generate([boundedSrc]);
+      expect(r).toBeDefined();
+      const env = run(r!.outFile);
+      expect(env.failed).toBe(0);
+      expect(env.issues).toEqual([]);
     },
   );
 });

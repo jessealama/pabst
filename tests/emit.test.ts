@@ -61,9 +61,8 @@ describe("emit", () => {
       ".pabst/foo.pabst.test.ts",
       42,
     );
-    const occurrences = multi.split(
-      'from "@jessealama/pabst/runtime"',
-    ).length - 1;
+    const occurrences =
+      multi.split('from "@jessealama/pabst/runtime"').length - 1;
     expect(occurrences).toBe(1);
   });
 });
@@ -147,5 +146,26 @@ describe("emit — class methods", () => {
     expect(out).toContain(
       '__pabstReport("arith.ts", "Arith.negate", "matchesSubtraction", ["x"], d)',
     );
+  });
+});
+
+describe("emit — bounded intervals", () => {
+  it("passes range constraints through to the arbitraries", () => {
+    const bounded: PropertySpec = {
+      ...spec,
+      binders: [
+        { varName: "x", domain: "int", range: { min: "1", max: "30" } },
+        { varName: "y", domain: "number", range: { min: "0", max: "1" } },
+      ],
+    };
+    const out = emit([bounded], "foo.ts", ".pabst/foo.pabst.test.ts", 42);
+    expect(out).toContain(
+      "test.prop([fc.integer({ min: 1, max: 30 }), fc.double({ min: 0, max: 1, noNaN: true })]",
+    );
+  });
+
+  it("leaves unranged binders exactly as before", () => {
+    const out = emit([spec], "foo.ts", ".pabst/foo.pabst.test.ts", 42);
+    expect(out).toContain("test.prop([fc.integer(), fc.double()]");
   });
 });
