@@ -71,6 +71,10 @@ describe("desugarEquations — leaves plain JS alone", () => {
     expect(desugarEquations("f(x) >= 0")).toBe("f(x) >= 0");
     expect(desugarEquations("x >>> 2")).toBe("x >>> 2");
   });
+  it("does not treat >>= or >>>= (compound tokens with =) as equations", () => {
+    expect(desugarEquations("x >>= 2")).toBe("x >>= 2");
+    expect(desugarEquations("x >>>= 2")).toBe("x >>>= 2");
+  });
   it("keeps >= intact inside a real equation", () => {
     expect(desugarEquations("x >= 1 = flag")).toBe("Object.is(x >= 1, flag)");
   });
@@ -111,6 +115,31 @@ describe("desugarEquations — rejections", () => {
   it("rejects && and || surfaced at the atom root by = precedence", () => {
     throws("a = b && c", /use ∧/);
     throws("a = b || c", /use ∨/);
+  });
+  it("rejects ?? regrouped to the atom root by = precedence", () => {
+    throws("a = b ?? c", /binds tighter than \?\?/);
+  });
+  it("rejects an equation regrouped as the left of ?? at any depth", () => {
+    throws("f(a = b ?? c)", /binds tighter than \?\?/);
+  });
+  it("allows a ?? whose left operand is not a user equation", () => {
+    expect(desugarEquations("a = (b ?? c)")).toBe("Object.is(a, (b ?? c))");
+    expect(desugarEquations("f(x ?? y) = z")).toBe("Object.is(f(x ?? y), z)");
+  });
+  it("rejects an equation regrouped into a ternary condition", () => {
+    throws("a = b ? c : d", /became the ternary's condition/);
+  });
+  it("allows ternaries that do not trap the equation", () => {
+    expect(desugarEquations("x != y ? c : d")).toBe("!Object.is(x, y) ? c : d");
+    expect(desugarEquations("flag ? x = 1 : y = 2")).toBe(
+      "flag ? Object.is(x, 1) : Object.is(y, 2)",
+    );
+    expect(desugarEquations("(a = b) ? c : d")).toBe(
+      "(Object.is(a, b)) ? c : d",
+    );
+    expect(desugarEquations("a = (b ? c : d)")).toBe(
+      "Object.is(a, (b ? c : d))",
+    );
   });
   it("rejects atoms the substitution makes unparseable (default params)", () => {
     throws("((x = 1) => x)(0) = 1", /cannot parse atom/);

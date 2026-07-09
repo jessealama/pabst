@@ -141,10 +141,12 @@ Non-ASCII symbols are the canonical form; ASCII fallbacks are available.
   equality: `NaN = NaN` holds and `-0 = 0` does not, so `x + 0 = x` is
   refutable at `x = -0` (guard with `x ≠ -0 →` if that is intended). Equations
   apply at every depth of an atom, callbacks included (`xs.every(x => x = 0)`),
-  so JS assignment cannot appear in a formula. `=` binds like JS `==`: tighter
-  than `&&`/`||`/`?:`, looser than `<`/`<=`. Chains like `a = b = c` are
-  errors — write `a = b ∧ b = c`. Loose equality `==` is an error (use `=` or
-  `===`); `===`/`!==` keep their exact JS meaning.
+  so plain `=` assignment cannot appear in a formula. `=` binds like JS `==`:
+  tighter than `&&`/`||`/`??`/`?:`, looser than `<`/`<=` — so `a = b ?? c` and
+  `a = b ? c : d` are errors (parenthesize the intended grouping, e.g.
+  `a = (b ? c : d)`). Chains like `a = b = c` are errors — write `a = b ∧ b = c`.
+  Loose equality `==` is an error (use `=` or `===`); `===`/`!==` keep their
+  exact JS meaning.
 - **Atoms are JavaScript** and must be genuine booleans — every atom is checked
   at runtime (`5 ∧ true` is an error, not a coercion). You may **not** use JS
   `&&`/`||`/`!` at an atom's top level — use the glyphs. They remain legal

@@ -12,6 +12,8 @@ Notable changes to pabst. The format follows
   `A ≠ B` (ASCII: `A != B`) for `!Object.is(A, B)`. Equations work at every
   depth inside an atom, including callback bodies, and bind like JS `==`.
   Chained equations (`a = b = c`) are rejected — write `a = b ∧ b = c`.
+  Because `=` binds tighter than `??` and `?:`, `a = b ?? c` and
+  `a = b ? c : d` are rejected too — parenthesize the intended grouping.
   Diagnostics show the equation as written; the generated test code carries
   the `Object.is` form.
 
@@ -21,7 +23,7 @@ Notable changes to pabst. The format follows
   inequality.
 - JS loose equality `==` in a formula atom is now a compile error: use `=`
   (identity) or `===` (JS strict equality).
-- JS assignment expressions (and default-parameter initializers) can no
+- Plain `=` assignment expressions (and default-parameter initializers) can no
   longer appear inside a formula atom.
 
 ## [0.6.0] - 2026-07-09

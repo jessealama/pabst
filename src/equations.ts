@@ -40,6 +40,7 @@ export function desugarEquations(text: string): string {
   }
   banLooseEquality(sf, equationOffsets, text);
   rejectChains(sf, text);
+  rejectRegroupedEquations(sf, equationOffsets, text);
   enforceRootConnectives(stmt.expression.expression, text);
   return rewrite(stmt.expression.expression, sf);
 }
@@ -218,6 +219,45 @@ function rejectChains(sf: ts.SourceFile, original: string): void {
 }
 
 /**
+ * `=` binds tighter than `??` and `?:`, so a user-written `=` silently
+ * regroups: `a = b ?? c` is `(a = b) ?? c` (the `?? c` is dead code — an
+ * Object.is is never nullish) and `a = b ? c : d` is `(a = b) ? c : d` (the
+ * equation becomes the ternary's condition). Reject at every depth when the
+ * trapped side is a bare equation the user wrote as `=`; a parenthesized form
+ * (or a `!=`/`===` condition) is intentional and left alone.
+ */
+function rejectRegroupedEquations(
+  sf: ts.SourceFile,
+  equationOffsets: Set<number>,
+  original: string,
+): void {
+  const isUserEquation = (node: ts.Node): boolean =>
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsToken &&
+    equationOffsets.has(node.operatorToken.getStart(sf) - WRAP);
+  const visit = (node: ts.Node): void => {
+    if (ts.isConditionalExpression(node) && isUserEquation(node.condition)) {
+      throw new PabstError(
+        `the equation became the ternary's condition: = binds tighter than ` +
+          `?: — write a = (b ? c : d) or (a = b) ? c : d (in: ${original})`,
+      );
+    }
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+      isUserEquation(node.left)
+    ) {
+      throw new PabstError(
+        `parenthesize the ?? expression: = binds tighter than ?? , so ` +
+          `a = b ?? c means (a = b) ?? c (in: ${original})`,
+      );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+}
+
+/**
  * `=` binds tighter than && and ||, so `a = b && c` groups as (a = b) && c —
  * a JS connective at the atom's top level. The pre-desugar leaf rule in
  * formula-parser.ts cannot see this (it reads `a = (b && c)` as assignment),
@@ -237,6 +277,12 @@ function enforceRootConnectives(root: ts.Expression, original: string): void {
     throw new PabstError(
       `use ∨ for disjunction at the property's top level, not JS || ` +
         `(note: = binds tighter than ||) (in: ${original})`,
+    );
+  }
+  if (expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+    throw new PabstError(
+      `parenthesize the ?? expression: = binds tighter than ?? , so ` +
+        `a = b ?? c means (a = b) ?? c (in: ${original})`,
     );
   }
 }
