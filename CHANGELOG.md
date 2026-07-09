@@ -8,23 +8,23 @@ Notable changes to pabst. The format follows
 
 ### Added
 
-- Equation syntax in formulas: `A = B` is sugar for `Object.is(A, B)`, and
-  `A ≠ B` (ASCII: `A != B`) for `!Object.is(A, B)`. Equations work at every
-  depth inside an atom, including callback bodies, and bind like JS `==`.
-  Chained equations (`a = b = c`) are rejected — write `a = b ∧ b = c`.
-  Because `=` binds tighter than `??` and `?:`, `a = b ?? c` and
-  `a = b ? c : d` are rejected too — parenthesize the intended grouping.
-  Diagnostics show the equation as written; the generated test code carries
-  the `Object.is` form.
+- Equation syntax in formulas: `A ≡ B` is sugar for `Object.is(A, B)`, and
+  `A ≢ B` for `!Object.is(A, B)`. The glyphs are canonical and — like `¬` —
+  have no ASCII operator fallback: in plain ASCII, call `Object.is(A, B)`
+  directly. Equations work at every depth inside an atom, including callback
+  bodies, and bind like JS `==`. Chained equations (`a ≡ b ≡ c`) are
+  rejected — write `a ≡ b ∧ b ≡ c`. Because `≡` binds tighter than `??` and
+  `?:`, `a ≡ b ?? c` and `a ≡ b ? c : d` are rejected too — parenthesize the
+  intended grouping. Diagnostics show the equation as written; the generated
+  test code carries the `Object.is` form.
 
 ### Breaking
 
-- `!=` in a formula atom now means `!Object.is(A, B)`, not JS loose
-  inequality.
-- JS loose equality `==` in a formula atom is now a compile error: use `=`
-  (identity) or `===` (JS strict equality).
-- Plain `=` assignment expressions (and default-parameter initializers) can no
-  longer appear inside a formula atom.
+- JS loose equality `==` and loose inequality `!=` in a formula atom are now
+  compile errors: use `≡` / `≢` (identity) or `===` / `!==` (JS strict).
+- Plain `=` assignment expressions cannot appear inside a formula atom
+  (default-parameter initializers in callbacks are fine), and `≠` is
+  rejected with a hint to write `≢`.
 
 ## [0.6.0] - 2026-07-09
 

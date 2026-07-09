@@ -77,7 +77,7 @@ empty `issues` array:
 
 ```json
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "startedAt": "2026-06-26T17:42:03.000Z",
   "cwd": "/path/to/project",
   "seed": 1834592013,
@@ -116,7 +116,9 @@ symbol, which are reported as a one-line message on stderr.
 ## Grammar
 
 A property is a universally quantified formula in Pabst's **logic surface**.
-Non-ASCII symbols are the canonical form; ASCII fallbacks are available.
+Non-ASCII symbols are the canonical form; most have ASCII fallbacks
+(negation `¬` and the equation glyphs `≡`/`≢` are glyph-only — the ASCII
+spelling of an equation is a plain `Object.is` call).
 
 ```ts
 /**
@@ -136,17 +138,21 @@ Non-ASCII symbols are the canonical form; ASCII fallbacks are available.
 - **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
   Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
   Negation `¬` is glyph-only.
-- **Equations:** `A = B` means identity — sugar for `Object.is(A, B)`; `A ≠ B`
-  (ASCII: `A != B`) is its negation. This is SameValue, not mathematical
-  equality: `NaN = NaN` holds and `-0 = 0` does not, so `x + 0 = x` is
-  refutable at `x = -0` (guard with `x ≠ -0 →` if that is intended). Equations
-  apply at every depth of an atom, callbacks included (`xs.every(x => x = 0)`),
-  so plain `=` assignment cannot appear in a formula. `=` binds like JS `==`:
-  tighter than `&&`/`||`/`??`/`?:`, looser than `<`/`<=` — so `a = b ?? c` and
-  `a = b ? c : d` are errors (parenthesize the intended grouping, e.g.
-  `a = (b ? c : d)`). Chains like `a = b = c` are errors — write `a = b ∧ b = c`.
-  Loose equality `==` is an error (use `=` or `===`); `===`/`!==` keep their
-  exact JS meaning.
+- **Equations:** `A ≡ B` means identity — sugar for `Object.is(A, B)`;
+  `A ≢ B` is its negation. Both are glyph-only, like `¬`: in plain ASCII,
+  call `Object.is(A, B)` directly (negate at an atom's top level with `≢` or
+  `¬(Object.is(A, B))`; nested `!Object.is(A, B)` is fine). This is
+  SameValue, not mathematical equality: `NaN ≡ NaN` holds and `-0 ≡ 0` does
+  not, so `x + 0 ≡ x` is refutable at `x = -0` (guard with `x ≢ -0 →` if
+  that is intended). Equations apply at every depth of an atom, callbacks
+  included (`xs.every(x => x ≡ 0)`). `≡` binds like JS `==`: tighter than
+  `&&`/`||`/`??`/`?:`, looser than `<`/`<=` — so `a ≡ b ?? c` and
+  `a ≡ b ? c : d` are errors (parenthesize the intended grouping, e.g.
+  `a ≡ (b ? c : d)`). Chains like `a ≡ b ≡ c` are errors — write
+  `a ≡ b ∧ b ≡ c`. Loose `==`/`!=` are errors (use `≡`/`≢` or `===`/`!==`);
+  `===`/`!==` keep their exact JS meaning; `=` is JS assignment and cannot
+  appear in a formula (default-parameter initializers in callbacks are
+  fine); `≠` is rejected with a hint to write `≢`.
 - **Atoms are JavaScript** and must be genuine booleans — every atom is checked
   at runtime (`5 ∧ true` is an error, not a coercion). You may **not** use JS
   `&&`/`||`/`!` at an atom's top level — use the glyphs. They remain legal
