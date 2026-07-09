@@ -86,6 +86,11 @@ describe("desugarEquations — leaves plain JS alone", () => {
     expect(desugarEquations("s === `${x} = ${y}`")).toBe("s === `${x} = ${y}`");
     expect(desugarEquations("t === `${a} ≠ ${b}`")).toBe("t === `${a} ≠ ${b}`");
   });
+  it("does not end template mode at a } that closes a brace inside a substitution", () => {
+    expect(desugarEquations("s === `${ {a: 1} } = ${y}`")).toBe(
+      "s === `${ {a: 1} } = ${y}`",
+    );
+  });
 });
 
 const throws = (input: string, re: RegExp) => {
@@ -118,6 +123,10 @@ describe("desugarEquations — rejections", () => {
   });
   it("rejects ?? regrouped to the atom root by = precedence", () => {
     throws("a = b ?? c", /binds tighter than \?\?/);
+  });
+  it("rejects other root-level ?? shapes over an equation, shape-neutrally", () => {
+    throws("a ?? b = c", /never nullish/);
+    throws("(a = b) ?? c", /never nullish/);
   });
   it("rejects an equation regrouped as the left of ?? at any depth", () => {
     throws("f(a = b ?? c)", /binds tighter than \?\?/);

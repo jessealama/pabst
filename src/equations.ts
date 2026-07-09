@@ -281,8 +281,9 @@ function enforceRootConnectives(root: ts.Expression, original: string): void {
   }
   if (expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
     throw new PabstError(
-      `parenthesize the ?? expression: = binds tighter than ?? , so ` +
-        `a = b ?? c means (a = b) ?? c (in: ${original})`,
+      `?? at an atom's top level over an equation is dead code — Object.is ` +
+        `results are never nullish: parenthesize the intended grouping ` +
+        `(in: ${original})`,
     );
   }
 }
