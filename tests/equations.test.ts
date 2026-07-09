@@ -38,6 +38,24 @@ describe("desugarEquations — rewrites", () => {
   it("preserves operand formatting", () => {
     expect(desugarEquations("f( a , b ) = c")).toBe("Object.is(f( a , b ), c)");
   });
+  it("leaves = and ≠ in template text untouched while rewriting the outer =", () => {
+    expect(desugarEquations("s = `${x} = ${y}`")).toBe(
+      "Object.is(s, `${x} = ${y}`)",
+    );
+    expect(desugarEquations("t = `${a} ≠ ${b}`")).toBe(
+      "Object.is(t, `${a} ≠ ${b}`)",
+    );
+  });
+  it("rewrites a real equation inside a substitution", () => {
+    expect(desugarEquations("s = `v: ${x = y}`")).toBe(
+      "Object.is(s, `v: ${Object.is(x, y)}`)",
+    );
+  });
+  it("rewrites equations inside nested template substitutions", () => {
+    expect(desugarEquations("s = `a${ `b${x = y}` }d`")).toBe(
+      "Object.is(s, `a${ `b${Object.is(x, y)}` }d`)",
+    );
+  });
 });
 
 describe("desugarEquations — leaves plain JS alone", () => {
@@ -59,6 +77,10 @@ describe("desugarEquations — leaves plain JS alone", () => {
   it("does not touch = or ≠ inside string literals", () => {
     expect(desugarEquations('s = "a = b"')).toBe('Object.is(s, "a = b")');
     expect(desugarEquations('s = "≠"')).toBe('Object.is(s, "≠")');
+  });
+  it("does not touch = or ≠ inside template text after a substitution", () => {
+    expect(desugarEquations("s === `${x} = ${y}`")).toBe("s === `${x} = ${y}`");
+    expect(desugarEquations("t === `${a} ≠ ${b}`")).toBe("t === `${a} ≠ ${b}`");
   });
 });
 

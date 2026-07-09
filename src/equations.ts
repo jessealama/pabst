@@ -62,6 +62,12 @@ function substitute(text: string): Substitution {
   let sawEquality = false;
   let prev: ts.SyntaxKind | null = null;
   let kind: ts.SyntaxKind;
+  // Open-brace count within each active template substitution, innermost last.
+  // The standalone scanner does not re-enter template mode after a `${…}`
+  // substitution closes, so its middle/tail text would be scanned as ordinary
+  // tokens (corrupting a `=`/`≠` in that text). Track the nesting and re-scan
+  // the closing brace as a TemplateMiddle/TemplateTail to stay in template mode.
+  const templateBraces: number[] = [];
   while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
     if (
       kind === ts.SyntaxKind.SlashToken ||
@@ -77,6 +83,24 @@ function substitute(text: string): Substitution {
       // tokens for generic-closing-`>` handling; merge them so the lone
       // EqualsToken is not mistaken for an equation.
       kind = scanner.reScanGreaterToken();
+    }
+    const top = templateBraces.length - 1;
+    if (kind === ts.SyntaxKind.TemplateHead) {
+      // `` `…${ `` opens a template; its first substitution is now active.
+      templateBraces.push(0);
+    } else if (kind === ts.SyntaxKind.OpenBraceToken && top >= 0) {
+      templateBraces[top] = templateBraces[top]! + 1;
+    } else if (kind === ts.SyntaxKind.CloseBraceToken && top >= 0) {
+      if (templateBraces[top]! > 0) {
+        // an ordinary `}` inside the substitution
+        templateBraces[top] = templateBraces[top]! - 1;
+      } else {
+        // This `}` ends the substitution: re-scan as template continuation so
+        // the following text stays template text rather than loose tokens.
+        kind = scanner.reScanTemplateToken(/*isTaggedTemplate*/ false);
+        if (kind === ts.SyntaxKind.TemplateTail) templateBraces.pop();
+        // TemplateMiddle keeps the same level (a new substitution follows).
+      }
     }
     if (kind === ts.SyntaxKind.EqualsToken) {
       out += text.slice(consumed, scanner.getTokenStart());
