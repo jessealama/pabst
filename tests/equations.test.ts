@@ -48,6 +48,14 @@ describe("desugarEquations — leaves plain JS alone", () => {
     expect(desugarEquations("x <= y")).toBe("x <= y");
     expect(desugarEquations("/=/.test(s)")).toBe("/=/.test(s)");
   });
+  it("does not mistake >= (scanned as > then =) for an equation", () => {
+    expect(desugarEquations("x >= y")).toBe("x >= y");
+    expect(desugarEquations("f(x) >= 0")).toBe("f(x) >= 0");
+    expect(desugarEquations("x >>> 2")).toBe("x >>> 2");
+  });
+  it("keeps >= intact inside a real equation", () => {
+    expect(desugarEquations("x >= 1 = flag")).toBe("Object.is(x >= 1, flag)");
+  });
   it("does not touch = or ≠ inside string literals", () => {
     expect(desugarEquations('s = "a = b"')).toBe('Object.is(s, "a = b")');
     expect(desugarEquations('s = "≠"')).toBe('Object.is(s, "≠")');

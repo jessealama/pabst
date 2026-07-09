@@ -72,6 +72,12 @@ function substitute(text: string): Substitution {
         if (re === ts.SyntaxKind.RegularExpressionLiteral) kind = re;
       }
     }
+    if (kind === ts.SyntaxKind.GreaterThanToken) {
+      // The base scan splits >= (and >>, >>=, …) into > followed by more
+      // tokens for generic-closing-`>` handling; merge them so the lone
+      // EqualsToken is not mistaken for an equation.
+      kind = scanner.reScanGreaterToken();
+    }
     if (kind === ts.SyntaxKind.EqualsToken) {
       out += text.slice(consumed, scanner.getTokenStart());
       equationOffsets.add(out.length);
