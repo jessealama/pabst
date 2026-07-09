@@ -25,6 +25,8 @@ const parseRoundTripSrc = path.join(
 );
 const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
 const boundedSrc = path.join(root, "tests/fixtures/e2e/bounded.ts");
+const equationPassSrc = path.join(root, "tests/fixtures/e2e/equation-pass.ts");
+const equationFailSrc = path.join(root, "tests/fixtures/e2e/equation-fail.ts");
 const exhaustedSrc = path.join(
   root,
   "tests/fixtures/e2e/precondition-exhausted.ts",
@@ -271,6 +273,37 @@ describe("end-to-end", () => {
       const env = run(r!.outFile);
       expect(env.failed).toBe(0);
       expect(env.issues).toEqual([]);
+    },
+  );
+
+  it(
+    "equation syntax: guarded identities pass vitest",
+    { timeout: 30000 },
+    () => {
+      const [r] = generate([equationPassSrc], ".pabst", 3);
+      expect(r).toBeDefined();
+      const env = run(r!.outFile);
+      expect(env.failed).toBe(0);
+      expect(env.issues).toEqual([]);
+    },
+  );
+
+  it(
+    "equation syntax: the -0 near-miss is refuted via =",
+    { timeout: 30000 },
+    () => {
+      const [r] = generate([equationFailSrc], ".pabst", 3);
+      expect(r).toBeDefined();
+      const env = run(r!.outFile);
+      expect(env.failed).toBeGreaterThan(0);
+      expect(env.issues).toHaveLength(1);
+      expectValidIssue(env.issues[0]);
+      expect(env.issues[0]).toMatchObject({
+        function: "negate",
+        property: "matchesSubtraction",
+        kind: "falsified",
+        counterexample: { x: 0 },
+      });
     },
   );
 });
