@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { desugarEquations } from "../src/equations.js";
+import { PabstError } from "../src/errors.js";
 
 describe("desugarEquations — rewrites", () => {
   it("rewrites = to Object.is", () => {
@@ -50,5 +51,38 @@ describe("desugarEquations — leaves plain JS alone", () => {
   it("does not touch = or ≠ inside string literals", () => {
     expect(desugarEquations('s = "a = b"')).toBe('Object.is(s, "a = b")');
     expect(desugarEquations('s = "≠"')).toBe('Object.is(s, "≠")');
+  });
+});
+
+const throws = (input: string, re: RegExp) => {
+  expect(() => desugarEquations(input)).toThrowError(PabstError);
+  expect(() => desugarEquations(input)).toThrowError(re);
+};
+
+describe("desugarEquations — rejections", () => {
+  it("bans loose equality == at any depth", () => {
+    throws("x == y", /loose equality/);
+    throws("xs.every(x => x == 0)", /loose equality/);
+  });
+  it("the == ban names both replacements and the offending atom", () => {
+    throws("x == y", /use = .*Object\.is.*===/);
+    throws("x == y", /x == y/);
+  });
+  it("rejects chained equations", () => {
+    throws("a = b = c", /chained equations/);
+    throws("a != b != c", /chained equations/);
+    throws("a = b != c", /chained equations/);
+    throws("a = b === c", /chained equations/);
+    throws("a === b = c", /chained equations/);
+  });
+  it("does not reject pure ===/!== chains (untouched JS)", () => {
+    expect(desugarEquations("a === b !== c")).toBe("a === b !== c");
+  });
+  it("rejects && and || surfaced at the atom root by = precedence", () => {
+    throws("a = b && c", /use ∧/);
+    throws("a = b || c", /use ∨/);
+  });
+  it("rejects atoms the substitution makes unparseable (default params)", () => {
+    throws("((x = 1) => x)(0) = 1", /cannot parse atom/);
   });
 });

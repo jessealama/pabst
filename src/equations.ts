@@ -2,6 +2,9 @@ import ts from "typescript";
 import { PabstError } from "./errors.js";
 import { regexCanFollow } from "./formula-lexer.js";
 
+/** Node offsets in the parsed file are parseText offsets + 1 (leading paren). */
+const WRAP = 1;
+
 /**
  * Equation sugar for atoms: `A = B` means Object.is(A, B); `A != B` / `A ≠ B`
  * means !Object.is(A, B). The TS parser cannot parse `x + 0 = x` (the LHS is
@@ -11,7 +14,7 @@ import { regexCanFollow } from "./formula-lexer.js";
  * assignment expressions cannot appear in a formula atom.
  */
 export function desugarEquations(text: string): string {
-  const { parseText, sawEquality } = substitute(text);
+  const { parseText, equationOffsets, sawEquality } = substitute(text);
   if (!sawEquality) return text;
   const sf = ts.createSourceFile(
     "__atom.ts",
@@ -27,6 +30,17 @@ export function desugarEquations(text: string): string {
   ) {
     throw new PabstError(`cannot parse atom: ${text}`);
   }
+  const diags = (sf as unknown as { parseDiagnostics: readonly unknown[] })
+    .parseDiagnostics;
+  if (diags.length > 0) {
+    throw new PabstError(
+      `cannot parse atom (JS assignment and default-parameter initializers ` +
+        `are not part of the formula language): ${text}`,
+    );
+  }
+  banLooseEquality(sf, equationOffsets, text);
+  rejectChains(sf, text);
+  enforceRootConnectives(stmt.expression.expression, text);
   return rewrite(stmt.expression.expression, sf);
 }
 
@@ -111,4 +125,88 @@ function rewrite(node: ts.Node, sf: ts.SourceFile): string {
   }
   out += sf.text.slice(pos, node.end);
   return out;
+}
+
+const EQUALITY_OPS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.EqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsToken,
+  ts.SyntaxKind.EqualsEqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsEqualsToken,
+]);
+
+/** A `==` whose offset was NOT produced by the `=` substitution is user-written. */
+function banLooseEquality(
+  sf: ts.SourceFile,
+  equationOffsets: Set<number>,
+  original: string,
+): void {
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsToken &&
+      !equationOffsets.has(node.operatorToken.getStart(sf) - WRAP)
+    ) {
+      throw new PabstError(
+        `loose equality (==) is not allowed: use = for identity (Object.is) ` +
+          `or === for JS strict equality (in: ${original})`,
+      );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+}
+
+/**
+ * An equation may not be a direct operand of another equality-precedence
+ * operator: `a = b = c`, `a = b != c`, `a = b === c` are ambiguous to a
+ * reader even though JS associativity would pick a grouping. Parenthesized
+ * forms are fine; pure ===/!== chains are untouched JS.
+ */
+function rejectChains(sf: ts.SourceFile, original: string): void {
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isBinaryExpression(node) &&
+      EQUALITY_OPS.has(node.operatorToken.kind)
+    ) {
+      for (const side of [node.left, node.right]) {
+        if (
+          ts.isBinaryExpression(side) &&
+          EQUALITY_OPS.has(side.operatorToken.kind) &&
+          (EQUATION_OPS.has(node.operatorToken.kind) ||
+            EQUATION_OPS.has(side.operatorToken.kind))
+        ) {
+          throw new PabstError(
+            `chained equations are not supported: split into conjuncts, ` +
+              `e.g. a = b ∧ b = c, or parenthesize (in: ${original})`,
+          );
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+}
+
+/**
+ * `=` binds tighter than && and ||, so `a = b && c` groups as (a = b) && c —
+ * a JS connective at the atom's top level. The pre-desugar leaf rule in
+ * formula-parser.ts cannot see this (it reads `a = (b && c)` as assignment),
+ * so re-check on the substituted parse.
+ */
+function enforceRootConnectives(root: ts.Expression, original: string): void {
+  let expr = root;
+  while (ts.isParenthesizedExpression(expr)) expr = expr.expression;
+  if (!ts.isBinaryExpression(expr)) return;
+  if (expr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    throw new PabstError(
+      `use ∧ for conjunction at the property's top level, not JS && ` +
+        `(note: = binds tighter than &&) (in: ${original})`,
+    );
+  }
+  if (expr.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+    throw new PabstError(
+      `use ∨ for disjunction at the property's top level, not JS || ` +
+        `(note: = binds tighter than ||) (in: ${original})`,
+    );
+  }
 }
