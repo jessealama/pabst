@@ -81,7 +81,7 @@ export function lexFormula(body: string): FToken[] {
 }
 
 /** A `/` can begin a regex unless the previous token ends a value (then it's division). */
-function regexCanFollow(prev: ts.SyntaxKind | null): boolean {
+export function regexCanFollow(prev: ts.SyntaxKind | null): boolean {
   if (prev === null) return true;
   if (prev === ts.SyntaxKind.Identifier) return false;
   if (
