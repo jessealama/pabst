@@ -289,7 +289,7 @@ describe("end-to-end", () => {
   );
 
   it(
-    "equation syntax: the -0 near-miss is refuted via =",
+    "equation syntax: the -0 near-miss is refuted via ≡",
     { timeout: 30000 },
     () => {
       const [r] = generate([equationFailSrc], ".pabst", 3);

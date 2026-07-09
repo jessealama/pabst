@@ -55,29 +55,44 @@ describe("parseBody — atoms keep their JS", () => {
 });
 
 describe("parseBody — equations", () => {
-  it("lowers = to Object.is, labeled with the original text", () => {
-    expect(lo("negate(x) = 0 - x")).toEqual({
+  it("lowers ≡ to Object.is, labeled with the original text", () => {
+    expect(lo("negate(x) ≡ 0 - x")).toEqual({
       preconditions: [],
-      body: '__bool(Object.is(negate(x), 0 - x), "negate(x) = 0 - x")',
+      body: '__bool(Object.is(negate(x), 0 - x), "negate(x) ≡ 0 - x")',
     });
   });
   it("handles an equation LHS that is not a JS assignment target", () => {
-    expect(lo("x != -0 -> x + 0 = x")).toEqual({
-      preconditions: ['__bool(!Object.is(x, -0), "x != -0")'],
-      body: '__bool(Object.is(x + 0, x), "x + 0 = x")',
+    expect(lo("x ≢ -0 -> x + 0 ≡ x")).toEqual({
+      preconditions: ['__bool(!Object.is(x, -0), "x ≢ -0")'],
+      body: '__bool(Object.is(x + 0, x), "x + 0 ≡ x")',
     });
   });
-  it("lowers ≠ to !Object.is", () => {
-    expect(lo("x ≠ y")).toEqual({
+  it("lowers ≢ to !Object.is", () => {
+    expect(lo("x ≢ y")).toEqual({
       preconditions: [],
-      body: '__bool(!Object.is(x, y), "x ≠ y")',
+      body: '__bool(!Object.is(x, y), "x ≢ y")',
+    });
+  });
+  it("negates an equation with formula-level ¬", () => {
+    expect(lo("¬(x ≡ y)")).toEqual({
+      preconditions: [],
+      body: '!(__bool(Object.is(x, y), "x ≡ y"))',
     });
   });
   it("rejects loose ==", () => {
     expectPabstError(() => parseBody("a == b"), /loose equality/);
   });
+  it("rejects loose !=", () => {
+    expectPabstError(() => parseBody("a != b"), /loose inequality/);
+  });
+  it("rejects = assignment with a ≡ hint", () => {
+    expectPabstError(() => parseBody("x = 0"), /write A ≡ B/);
+  });
+  it("rejects ≠ with a ≢ hint", () => {
+    expectPabstError(() => parseBody("a ≠ b"), /write ≢/);
+  });
   it("rejects chained equations", () => {
-    expectPabstError(() => parseBody("a = b = c"), /chained equations/);
+    expectPabstError(() => parseBody("a ≡ b ≡ c"), /chained equations/);
   });
 });
 
@@ -93,6 +108,7 @@ describe("parseBody — errors", () => {
   });
   it("rejects a top-level prefix ! with a glyph hint", () => {
     expectPabstError(() => parseBody("!p"), /use ¬/);
+    expectPabstError(() => parseBody("!Object.is(a, b)"), /use ¬/);
   });
   it("rejects an empty operand", () => {
     expectPabstError(() => parseBody("a ∧ "), /empty/i);

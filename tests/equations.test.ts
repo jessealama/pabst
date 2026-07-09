@@ -3,56 +3,60 @@ import { desugarEquations } from "../src/equations.js";
 import { PabstError } from "../src/errors.js";
 
 describe("desugarEquations — rewrites", () => {
-  it("rewrites = to Object.is", () => {
-    expect(desugarEquations("x = y")).toBe("Object.is(x, y)");
+  it("rewrites ≡ to Object.is", () => {
+    expect(desugarEquations("x ≡ y")).toBe("Object.is(x, y)");
   });
   it("handles an LHS that is not a valid JS assignment target", () => {
-    expect(desugarEquations("x + 0 = x")).toBe("Object.is(x + 0, x)");
-    expect(desugarEquations('typeof x = "number"')).toBe(
+    expect(desugarEquations("x + 0 ≡ x")).toBe("Object.is(x + 0, x)");
+    expect(desugarEquations('typeof x ≡ "number"')).toBe(
       'Object.is(typeof x, "number")',
     );
   });
-  it("rewrites != and ≠ to !Object.is", () => {
-    expect(desugarEquations("x != y")).toBe("!Object.is(x, y)");
-    expect(desugarEquations("x ≠ y")).toBe("!Object.is(x, y)");
-    expect(desugarEquations("x != -0")).toBe("!Object.is(x, -0)");
+  it("rewrites ≢ to !Object.is", () => {
+    expect(desugarEquations("x ≢ y")).toBe("!Object.is(x, y)");
+    expect(desugarEquations("x ≢ -0")).toBe("!Object.is(x, -0)");
   });
   it("rewrites inside callback bodies (uniform depth)", () => {
-    expect(desugarEquations("xs.every(x => x = 0)")).toBe(
+    expect(desugarEquations("xs.every(x => x ≡ 0)")).toBe(
       "xs.every(x => Object.is(x, 0))",
     );
-    expect(desugarEquations("xs.every(x => x != 0)")).toBe(
+    expect(desugarEquations("xs.every(x => x ≢ 0)")).toBe(
       "xs.every(x => !Object.is(x, 0))",
     );
   });
+  it("supports JS ! over a nested equation", () => {
+    expect(desugarEquations("xs.some(x => !(x ≡ 0))")).toBe(
+      "xs.some(x => !(Object.is(x, 0)))",
+    );
+  });
   it("rewrites recursively on both sides of an equation", () => {
-    expect(desugarEquations("f(a = b) = c")).toBe(
+    expect(desugarEquations("f(a ≡ b) ≡ c")).toBe(
       "Object.is(f(Object.is(a, b)), c)",
     );
   });
   it("allows explicitly parenthesized nesting (user parens preserved)", () => {
-    expect(desugarEquations("flag = (x = y)")).toBe(
+    expect(desugarEquations("flag ≡ (x ≡ y)")).toBe(
       "Object.is(flag, (Object.is(x, y)))",
     );
   });
   it("preserves operand formatting", () => {
-    expect(desugarEquations("f( a , b ) = c")).toBe("Object.is(f( a , b ), c)");
+    expect(desugarEquations("f( a , b ) ≡ c")).toBe("Object.is(f( a , b ), c)");
   });
-  it("leaves = and ≠ in template text untouched while rewriting the outer =", () => {
-    expect(desugarEquations("s = `${x} = ${y}`")).toBe(
-      "Object.is(s, `${x} = ${y}`)",
+  it("leaves glyphs in template text untouched while rewriting the outer ≡", () => {
+    expect(desugarEquations("s ≡ `${x} ≡ ${y}`")).toBe(
+      "Object.is(s, `${x} ≡ ${y}`)",
     );
-    expect(desugarEquations("t = `${a} ≠ ${b}`")).toBe(
-      "Object.is(t, `${a} ≠ ${b}`)",
+    expect(desugarEquations("t ≡ `${a} ≢ ${b}`")).toBe(
+      "Object.is(t, `${a} ≢ ${b}`)",
     );
   });
   it("rewrites a real equation inside a substitution", () => {
-    expect(desugarEquations("s = `v: ${x = y}`")).toBe(
+    expect(desugarEquations("s ≡ `v: ${x ≡ y}`")).toBe(
       "Object.is(s, `v: ${Object.is(x, y)}`)",
     );
   });
   it("rewrites equations inside nested template substitutions", () => {
-    expect(desugarEquations("s = `a${ `b${x = y}` }d`")).toBe(
+    expect(desugarEquations("s ≡ `a${ `b${x ≡ y}` }d`")).toBe(
       "Object.is(s, `a${ `b${Object.is(x, y)}` }d`)",
     );
   });
@@ -66,29 +70,44 @@ describe("desugarEquations — leaves plain JS alone", () => {
     expect(desugarEquations("x <= y")).toBe("x <= y");
     expect(desugarEquations("/=/.test(s)")).toBe("/=/.test(s)");
   });
-  it("does not mistake >= (scanned as > then =) for an equation", () => {
+  it("returns an explicit Object.is call unchanged", () => {
+    expect(desugarEquations("Object.is(a, b)")).toBe("Object.is(a, b)");
+    expect(desugarEquations("xs.every(x => !Object.is(x, -0))")).toBe(
+      "xs.every(x => !Object.is(x, -0))",
+    );
+  });
+  it("does not mistake >= (scanned as > then =) for an assignment", () => {
     expect(desugarEquations("x >= y")).toBe("x >= y");
     expect(desugarEquations("f(x) >= 0")).toBe("f(x) >= 0");
     expect(desugarEquations("x >>> 2")).toBe("x >>> 2");
   });
-  it("does not treat >>= or >>>= (compound tokens with =) as equations", () => {
+  it("does not treat >>= or >>>= (compound tokens with =) as assignments", () => {
     expect(desugarEquations("x >>= 2")).toBe("x >>= 2");
     expect(desugarEquations("x >>>= 2")).toBe("x >>>= 2");
   });
   it("keeps >= intact inside a real equation", () => {
-    expect(desugarEquations("x >= 1 = flag")).toBe("Object.is(x >= 1, flag)");
+    expect(desugarEquations("x >= 1 ≡ flag")).toBe("Object.is(x >= 1, flag)");
   });
-  it("does not touch = or ≠ inside string literals", () => {
-    expect(desugarEquations('s = "a = b"')).toBe('Object.is(s, "a = b")');
-    expect(desugarEquations('s = "≠"')).toBe('Object.is(s, "≠")');
+  it("does not touch =, ≡, ≢, or ≠ inside string literals", () => {
+    expect(desugarEquations('s ≡ "a = b"')).toBe('Object.is(s, "a = b")');
+    expect(desugarEquations('s ≡ "≠"')).toBe('Object.is(s, "≠")');
+    expect(desugarEquations('s ≡ "≡ ≢"')).toBe('Object.is(s, "≡ ≢")');
   });
-  it("does not touch = or ≠ inside template text after a substitution", () => {
-    expect(desugarEquations("s === `${x} = ${y}`")).toBe("s === `${x} = ${y}`");
+  it("does not touch glyphs in template text after a substitution", () => {
+    expect(desugarEquations("s === `${x} ≡ ${y}`")).toBe("s === `${x} ≡ ${y}`");
     expect(desugarEquations("t === `${a} ≠ ${b}`")).toBe("t === `${a} ≠ ${b}`");
   });
   it("does not end template mode at a } that closes a brace inside a substitution", () => {
-    expect(desugarEquations("s === `${ {a: 1} } = ${y}`")).toBe(
-      "s === `${ {a: 1} } = ${y}`",
+    expect(desugarEquations("s === `${ {a: 1} } ≡ ${y}`")).toBe(
+      "s === `${ {a: 1} } ≡ ${y}`",
+    );
+  });
+  it("allows default-parameter initializers (not assignments)", () => {
+    expect(desugarEquations("((x = 1) => x)(0) ≡ 1")).toBe(
+      "Object.is(((x = 1) => x)(0), 1)",
+    );
+    expect(desugarEquations("xs.every((x, d = 1) => x > d)")).toBe(
+      "xs.every((x, d = 1) => x > d)",
     );
   });
 });
@@ -104,53 +123,72 @@ describe("desugarEquations — rejections", () => {
     throws("xs.every(x => x == 0)", /loose equality/);
   });
   it("the == ban names both replacements and the offending atom", () => {
-    throws("x == y", /use = .*Object\.is.*===/);
+    throws("x == y", /use ≡ .*Object\.is.*===/);
     throws("x == y", /x == y/);
   });
+  it("bans loose inequality != at any depth", () => {
+    throws("x != y", /loose inequality/);
+    throws("xs.every(x => x != 0)", /loose inequality/);
+    throws("x != y", /use ≢ .*!==/);
+  });
+  it("bans plain = assignment at any depth", () => {
+    throws("x = 0", /JS assignment/);
+    throws("xs.every(x => x = 0)", /JS assignment/);
+    throws("flag = (x ≡ y)", /JS assignment/);
+    throws("x = 0", /write A ≡ B/);
+  });
+  it("hints ≡ when the = atom cannot even parse as JS", () => {
+    throws("x + 0 = x", /JS assignment/);
+    throws('typeof x = "number"', /write A ≡ B/);
+  });
+  it("rejects ≠ with a hint to ≢", () => {
+    throws("a ≠ b", /write ≢/);
+    throws("a ≠ b", /a ≠ b/);
+  });
   it("rejects chained equations", () => {
-    throws("a = b = c", /chained equations/);
-    throws("a != b != c", /chained equations/);
-    throws("a = b != c", /chained equations/);
-    throws("a = b === c", /chained equations/);
-    throws("a === b = c", /chained equations/);
+    throws("a ≡ b ≡ c", /chained equations/);
+    throws("a ≢ b ≢ c", /chained equations/);
+    throws("a ≡ b ≢ c", /chained equations/);
+    throws("a ≡ b === c", /chained equations/);
+    throws("a === b ≡ c", /chained equations/);
   });
   it("does not reject pure ===/!== chains (untouched JS)", () => {
     expect(desugarEquations("a === b !== c")).toBe("a === b !== c");
   });
-  it("rejects && and || surfaced at the atom root by = precedence", () => {
-    throws("a = b && c", /use ∧/);
-    throws("a = b || c", /use ∨/);
+  it("rejects && and || surfaced at the atom root by ≡ precedence", () => {
+    throws("a ≡ b && c", /use ∧/);
+    throws("a ≡ b || c", /use ∨/);
   });
-  it("rejects ?? regrouped to the atom root by = precedence", () => {
-    throws("a = b ?? c", /binds tighter than \?\?/);
+  it("rejects ?? regrouped to the atom root by ≡ precedence", () => {
+    throws("a ≡ b ?? c", /binds tighter than \?\?/);
   });
   it("rejects other root-level ?? shapes over an equation, shape-neutrally", () => {
-    throws("a ?? b = c", /never nullish/);
-    throws("(a = b) ?? c", /never nullish/);
+    throws("a ?? b ≡ c", /never nullish/);
+    throws("(a ≡ b) ?? c", /never nullish/);
   });
   it("rejects an equation regrouped as the left of ?? at any depth", () => {
-    throws("f(a = b ?? c)", /binds tighter than \?\?/);
+    throws("f(a ≡ b ?? c)", /binds tighter than \?\?/);
   });
-  it("allows a ?? whose left operand is not a user equation", () => {
-    expect(desugarEquations("a = (b ?? c)")).toBe("Object.is(a, (b ?? c))");
-    expect(desugarEquations("f(x ?? y) = z")).toBe("Object.is(f(x ?? y), z)");
+  it("allows a ?? whose left operand is not an equation", () => {
+    expect(desugarEquations("a ≡ (b ?? c)")).toBe("Object.is(a, (b ?? c))");
+    expect(desugarEquations("f(x ?? y) ≡ z")).toBe("Object.is(f(x ?? y), z)");
   });
   it("rejects an equation regrouped into a ternary condition", () => {
-    throws("a = b ? c : d", /became the ternary's condition/);
+    throws("a ≡ b ? c : d", /became the ternary's condition/);
+    throws("a ≢ b ? c : d", /became the ternary's condition/);
   });
   it("allows ternaries that do not trap the equation", () => {
-    expect(desugarEquations("x != y ? c : d")).toBe("!Object.is(x, y) ? c : d");
-    expect(desugarEquations("flag ? x = 1 : y = 2")).toBe(
+    expect(desugarEquations("flag ? x ≡ 1 : y ≡ 2")).toBe(
       "flag ? Object.is(x, 1) : Object.is(y, 2)",
     );
-    expect(desugarEquations("(a = b) ? c : d")).toBe(
+    expect(desugarEquations("(a ≡ b) ? c : d")).toBe(
       "(Object.is(a, b)) ? c : d",
     );
-    expect(desugarEquations("a = (b ? c : d)")).toBe(
+    expect(desugarEquations("(x ≢ y) ? c : d")).toBe(
+      "(!Object.is(x, y)) ? c : d",
+    );
+    expect(desugarEquations("a ≡ (b ? c : d)")).toBe(
       "Object.is(a, (b ? c : d))",
     );
-  });
-  it("rejects atoms the substitution makes unparseable (default params)", () => {
-    throws("((x = 1) => x)(0) = 1", /cannot parse atom/);
   });
 });

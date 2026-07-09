@@ -23,8 +23,8 @@ describe("lowerExpr", () => {
     );
   });
   it("emits js but labels with the original source text", () => {
-    expect(lowerExpr(atom("x = y", "Object.is(x, y)"))).toBe(
-      '__bool(Object.is(x, y), "x = y")',
+    expect(lowerExpr(atom("x ≡ y", "Object.is(x, y)"))).toBe(
+      '__bool(Object.is(x, y), "x ≡ y")',
     );
   });
   it("lowers a NESTED implication to material implication", () => {

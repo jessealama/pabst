@@ -6,7 +6,7 @@ describe("collectAtoms", () => {
     const f: Formula = {
       kind: "implication",
       antecedents: [
-        { kind: "atom", text: "p(x) = 1", js: "Object.is(p(x), 1)" },
+        { kind: "atom", text: "p(x) ≡ 1", js: "Object.is(p(x), 1)" },
       ],
       consequent: {
         kind: "and",
