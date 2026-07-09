@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { lowerExpr, lowerTop } from "../src/lower.js";
 import type { Formula } from "../src/formula-ast.js";
 
-const atom = (text: string): Formula => ({ kind: "atom", text });
+const atom = (text: string, js = text): Formula => ({ kind: "atom", text, js });
 
 describe("lowerExpr", () => {
   it("wraps an atom in __bool with its source text", () => {
@@ -20,6 +20,11 @@ describe("lowerExpr", () => {
     );
     expect(lowerExpr({ kind: "iff", left: atom("a"), right: atom("b") })).toBe(
       '(__bool(a, "a") === __bool(b, "b"))',
+    );
+  });
+  it("emits js but labels with the original source text", () => {
+    expect(lowerExpr(atom("x = y", "Object.is(x, y)"))).toBe(
+      '__bool(Object.is(x, y), "x = y")',
     );
   });
   it("lowers a NESTED implication to material implication", () => {

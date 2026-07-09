@@ -2,6 +2,7 @@ import ts from "typescript";
 import type { Formula } from "./formula-ast.js";
 import { lexFormula, type FToken } from "./formula-lexer.js";
 import { PabstError } from "./errors.js";
+import { desugarEquations } from "./equations.js";
 
 export function parseBody(body: string): Formula {
   const toks = lexFormula(body);
@@ -100,7 +101,7 @@ function makeAtom(toks: FToken[], src: string): Formula {
   if (text.length === 0)
     throw new PabstError("empty operand: a connective is missing a side");
   enforceLeafRule(text);
-  return { kind: "atom", text };
+  return { kind: "atom", text, js: desugarEquations(text) };
 }
 
 /** Reject a leaf whose TOP-LEVEL node is JS &&, ||, or prefix !. Nested uses are fine. */

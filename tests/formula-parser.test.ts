@@ -54,6 +54,33 @@ describe("parseBody — atoms keep their JS", () => {
   });
 });
 
+describe("parseBody — equations", () => {
+  it("lowers = to Object.is, labeled with the original text", () => {
+    expect(lo("negate(x) = 0 - x")).toEqual({
+      preconditions: [],
+      body: '__bool(Object.is(negate(x), 0 - x), "negate(x) = 0 - x")',
+    });
+  });
+  it("handles an equation LHS that is not a JS assignment target", () => {
+    expect(lo("x != -0 -> x + 0 = x")).toEqual({
+      preconditions: ['__bool(!Object.is(x, -0), "x != -0")'],
+      body: '__bool(Object.is(x + 0, x), "x + 0 = x")',
+    });
+  });
+  it("lowers ≠ to !Object.is", () => {
+    expect(lo("x ≠ y")).toEqual({
+      preconditions: [],
+      body: '__bool(!Object.is(x, y), "x ≠ y")',
+    });
+  });
+  it("rejects loose ==", () => {
+    expectPabstError(() => parseBody("a == b"), /loose equality/);
+  });
+  it("rejects chained equations", () => {
+    expectPabstError(() => parseBody("a = b = c"), /chained equations/);
+  });
+});
+
 describe("parseBody — errors", () => {
   it("rejects a chained ↔", () => {
     expectPabstError(() => parseBody("a ↔ b ↔ c"), /parenthesi[sz]e/i);

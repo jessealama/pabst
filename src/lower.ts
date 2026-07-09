@@ -4,7 +4,7 @@ import type { Formula } from "./formula-ast.js";
 export function lowerExpr(f: Formula): string {
   switch (f.kind) {
     case "atom":
-      return `__bool(${f.text}, ${JSON.stringify(f.text)})`;
+      return `__bool(${f.js}, ${JSON.stringify(f.text)})`;
     case "not":
       return `!(${lowerExpr(f.arg)})`;
     case "and":
