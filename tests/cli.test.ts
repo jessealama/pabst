@@ -9,6 +9,7 @@ const repoRoot = process.cwd();
 describe("cli main", () => {
   const dir = useTempProject("pabst-cli-", {
     "baz.ts": `/** @ensures{pos} forall (n: nat), baz(n) >= 0 */\nexport function baz(n: number): number { return n; }\n`,
+    "shadow.d.ts": `/** @ensures{pos2} forall (n: nat), baz(n) >= 0 */\nexport declare function baz(n: number): number;\n`,
   });
 
   it("gen writes generated files and returns 0", () => {
@@ -17,6 +18,12 @@ describe("cli main", () => {
     expect(fs.existsSync(path.join(dir, ".pabst", "baz.pabst.test.ts"))).toBe(
       true,
     );
+  });
+
+  it("gen skips declaration files matched by a glob", () => {
+    const { code, stderr } = runMain(["gen", "*.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
   });
 
   it("returns 2 on unknown command", () => {

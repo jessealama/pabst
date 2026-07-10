@@ -3,11 +3,10 @@ import { parseArgs } from "node:util";
 import { globSync, readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
+import { isTsSource } from "./discover.js";
 import { PabstError } from "./errors.js";
 import { runTests } from "./run.js";
 import { randomSeed, parseSeed } from "./seed.js";
-
-const TS_EXT = /\.(ts|tsx|mts|cts)$/;
 
 function readVersion(): string {
   const url = new URL("../package.json", import.meta.url);
@@ -83,8 +82,8 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     throw e;
   }
 
-  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter((f) =>
-    TS_EXT.test(f),
+  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter(
+    isTsSource,
   );
   if (files.length === 0) {
     console.error("error: no matching .ts files");
