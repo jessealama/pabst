@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { globSync, readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
+import { resolveFiles } from "./discover.js";
 import { PabstError } from "./errors.js";
 import { runTests } from "./run.js";
 import { randomSeed, parseSeed } from "./seed.js";
-
-const TS_EXT = /\.(ts|tsx|mts|cts)$/;
 
 function readVersion(): string {
   const url = new URL("../package.json", import.meta.url);
   return JSON.parse(readFileSync(url, "utf8")).version as string;
 }
 
-const USAGE = "usage: pabst <test|gen> [--seed <n>] <files-or-globs...>";
+const USAGE = "usage: pabst <test|gen> [--seed <n>] [files-or-globs...]";
 
 const HELP = `${USAGE}
 
@@ -22,6 +21,10 @@ commands:
   test  generate property tests from @ensures annotations, run them, and
         print a JSON report to stdout
   gen   generate only; run your own vitest against .pabst/
+
+when no files are given, pabst discovers your sources: the files that
+tsconfig.json would compile or, failing that, src/**. declaration files
+(.d.ts) are skipped unless a pattern names them (e.g. pabst gen index.d.ts).
 
 options:
   --seed <n>  reproduce a prior run's generation (n is echoed in the report)
@@ -64,17 +67,12 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     console.error(USAGE);
     return 2;
   }
-  if (patterns.length === 0) {
-    console.error("error: no files or globs provided");
-    return 2;
-  }
-
-  // Same policy as compilation below: user-facing errors (PabstError) map to
-  // the documented exit-2 error mode; anything else is an internal bug and
-  // crashes loudly.
-  let seed: number;
+  // User-facing errors anywhere below — a bad --seed, file resolution coming
+  // up empty, a malformed tsconfig, compile errors — are PabstErrors and map
+  // to the documented exit-2 error mode; anything else is an internal bug
+  // and crashes loudly.
   try {
-    seed = values.seed !== undefined ? parseSeed(values.seed) : randomSeed();
+    return run(command, patterns, values.seed);
   } catch (e) {
     if (e instanceof PabstError) {
       console.error(`error: ${e.message}`);
@@ -82,31 +80,27 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     }
     throw e;
   }
+}
 
-  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter((f) =>
-    TS_EXT.test(f),
-  );
-  if (files.length === 0) {
-    console.error("error: no matching .ts files");
-    return 2;
+function run(
+  command: "test" | "gen",
+  patterns: string[],
+  seedArg: string | undefined,
+): number {
+  const seed = seedArg !== undefined ? parseSeed(seedArg) : randomSeed();
+
+  const { files, source } = resolveFiles(patterns);
+  if (source !== "arguments") {
+    console.error(
+      `pabst: no files given; discovered ${files.length} file(s) via ${source}`,
+    );
   }
 
   const startedAt = new Date().toISOString();
   const cwd = process.cwd();
   const version = readVersion();
 
-  // User-facing compile errors (PabstError) map to the documented exit-2
-  // error mode; anything else is an internal bug and crashes loudly.
-  let results;
-  try {
-    results = generate(files, ".pabst", seed);
-  } catch (e) {
-    if (e instanceof PabstError) {
-      console.error(`error: ${e.message}`);
-      return 2;
-    }
-    throw e;
-  }
+  const results = generate(files, ".pabst", seed);
   const generated = results.reduce((n, r) => n + r.propertyCount, 0);
   console.error(
     `pabst: generated ${generated} propert${generated === 1 ? "y" : "ies"} across ${results.length} file(s) into .pabst/`,

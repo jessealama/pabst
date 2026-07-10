@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { generate } from "../src/codegen.js";
+import { PabstError } from "../src/errors.js";
 
 describe("generate", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pabst-codegen-"));
@@ -45,5 +46,34 @@ describe("generate", () => {
     expect(fs.existsSync(path.join(".pabst", "plain.pabst.test.ts"))).toBe(
       false,
     );
+  });
+});
+
+describe("generate: source outside the current directory", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pabst-codegen-out-"));
+  const prevCwd = process.cwd();
+
+  beforeAll(() => {
+    fs.mkdirSync(path.join(dir, "pkg"));
+    fs.writeFileSync(
+      path.join(dir, "evil.ts"),
+      `/** @ensures{pos} forall (n: nat), evil(n) >= 0 */\nexport function evil(n: number): number { return n; }\n`,
+      "utf8",
+    );
+    process.chdir(path.join(dir, "pkg"));
+  });
+  afterAll(() => {
+    process.chdir(prevCwd);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("throws PabstError rather than writing outside the output root", () => {
+    expect(() => generate(["../evil.ts"], ".pabst", 7)).toThrow(PabstError);
+    expect(() => generate(["../evil.ts"], ".pabst", 7)).toThrow(
+      /outside the current directory/,
+    );
+    // Nothing may leak into the tree: not under .pabst/, not beside it.
+    expect(fs.existsSync(path.join(dir, "evil.pabst.test.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "pkg", ".pabst"))).toBe(false);
   });
 });

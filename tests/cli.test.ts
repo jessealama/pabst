@@ -9,6 +9,7 @@ const repoRoot = process.cwd();
 describe("cli main", () => {
   const dir = useTempProject("pabst-cli-", {
     "baz.ts": `/** @ensures{pos} forall (n: nat), baz(n) >= 0 */\nexport function baz(n: number): number { return n; }\n`,
+    "shadow.d.ts": `/** @ensures{pos2} forall (n: nat), baz(n) >= 0 */\nexport declare function baz(n: number): number;\n`,
   });
 
   it("gen writes generated files and returns 0", () => {
@@ -19,12 +20,35 @@ describe("cli main", () => {
     );
   });
 
+  it("gen skips declaration files matched by a glob", () => {
+    const { code, stderr } = runMain(["gen", "*.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
+  });
+
+  it("gen honors an explicitly named declaration file", () => {
+    const { code, stderr } = runMain(["gen", "shadow.d.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
+  });
+
+  it("gen honors a glob that targets declaration files", () => {
+    const { code, stderr } = runMain(["gen", "*.d.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
+  });
+
   it("returns 2 on unknown command", () => {
     expect(runMain(["frobnicate", "baz.ts"]).code).toBe(2);
   });
 
-  it("returns 2 when no patterns are given", () => {
-    expect(runMain(["gen"]).code).toBe(2);
+  it("returns 2 when no patterns are given and nothing is discoverable", () => {
+    const { code, stderr } = runMain(["gen"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toBe(
+      'error: cannot determine where your source code is; pass files or globs (e.g. pabst test "src/**/*.ts")',
+    );
   });
 
   it("returns 2 with usage on an unknown option", () => {
@@ -64,6 +88,55 @@ describe("cli main", () => {
 
   it("returns 2 when no .ts files match the patterns", () => {
     expect(runMain(["gen", "*.nope"]).code).toBe(2);
+  });
+});
+
+describe("cli zero-argument discovery", () => {
+  describe("with a src/ directory", () => {
+    useTempProject("pabst-cli-zerosrc-", {
+      "src/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "src/types.d.ts": `export declare function qux(n: number): number;\n`,
+    });
+
+    it("gen discovers src/ sources and announces the discovery", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(0);
+      expect(stderr[0]).toBe(
+        "pabst: no files given; discovered 1 file(s) via src/",
+      );
+      expect(stderr[1]).toContain("generated 1 property across 1 file(s)");
+    });
+  });
+
+  describe("with a tsconfig.json", () => {
+    useTempProject("pabst-cli-zerotsc-", {
+      "tsconfig.json": JSON.stringify({ include: ["lib"] }),
+      "lib/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "src/decoy.ts": `export function decoy(): number { return 1; }\n`,
+    });
+
+    it("gen discovers via tsconfig.json, not src/", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(0);
+      expect(stderr[0]).toBe(
+        "pabst: no files given; discovered 1 file(s) via tsconfig.json",
+      );
+      expect(stderr[1]).toContain("generated 1 property across 1 file(s)");
+    });
+  });
+
+  describe("with a malformed tsconfig.json", () => {
+    useTempProject("pabst-cli-zerobad-", {
+      "tsconfig.json": JSON.stringify({ extends: "./missing.json" }),
+      "src/a.ts": `export const a = 1;\n`,
+    });
+
+    it("gen exits 2 with the tsconfig diagnostic, not falling through", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(2);
+      expect(stderr).toHaveLength(1);
+      expect(stderr[0]).toContain("error: tsconfig.json:");
+    });
   });
 });
 

@@ -4,6 +4,35 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.8.0]
+
+### Added
+
+- Zero-argument invocation: `pabst test` and `pabst gen` with no file
+  arguments discover the project's sources — the files `tsconfig.json`
+  would compile or, failing that, `src/**` — and announce on stderr what
+  they found. When neither yields anything, pabst exits 2 asking for an
+  explicit glob. Discovery reads the config the way `tsc` does but stays
+  usable where `tsc` would still enumerate the same files: diagnostics
+  about `compilerOptions` (an unknown flag or value, typically version skew
+  between the project's TypeScript and pabst's) are ignored, and an empty
+  `files` list falls through to `src/**` like any other input-less config.
+  A `files` entry naming a path that no longer exists is a one-line exit-2
+  error, and files outside the current directory (a monorepo `include` of
+  `../shared`, say) are skipped — generated tests live in `./.pabst/`, so
+  only the package pabst runs in can be tested. (#23)
+
+### Fixed
+
+- Declaration files (`.d.ts`/`.d.mts`/`.d.cts`) are excluded from file
+  lists unless a pattern explicitly names them (`pabst gen "index.d.ts"`);
+  previously a glob matching build output sitting next to its sources
+  extracted each property twice, with the declaration-file copies failing
+  spuriously. (#23)
+- `pabst gen`/`pabst test` on a file outside the current directory now
+  exits 2 with a one-line error; previously the generated test landed
+  outside `.pabst/`, where `pabst test` never ran it, silently passing. (#23)
+
 ## [0.7.0]
 
 ### Added
