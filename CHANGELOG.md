@@ -4,6 +4,23 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.8.0]
+
+### Added
+
+- Zero-argument invocation: `pabst test` and `pabst gen` with no file
+  arguments discover the project's sources — the files `tsconfig.json`
+  would compile or, failing that, `src/**` — and announce on stderr what
+  they found. When neither yields anything, pabst exits 2 asking for an
+  explicit glob. (#23)
+
+### Fixed
+
+- Declaration files (`.d.ts`/`.d.mts`/`.d.cts`) are excluded from every file
+  list, explicit globs included; previously a glob matching build output
+  sitting next to its sources extracted each property twice, with the
+  declaration-file copies failing spuriously. (#23)
+
 ## [0.7.0]
 
 ### Added
@@ -17,11 +34,6 @@ Notable changes to pabst. The format follows
   `?:`, `a ≡ b ?? c` and `a ≡ b ? c : d` are rejected too — parenthesize the
   intended grouping. Diagnostics show the equation as written; the generated
   test code carries the `Object.is` form.
-- Zero-argument invocation: `pabst test` and `pabst gen` with no file
-  arguments discover the project's sources — the files `tsconfig.json`
-  would compile or, failing that, `src/**` — and announce on stderr what
-  they found. When neither yields anything, pabst exits 2 asking for an
-  explicit glob. (#23)
 
 ### Breaking
 
@@ -40,10 +52,6 @@ Notable changes to pabst. The format follows
 - A `/` after `this`, `true`/`false`/`null`, postfix `++`/`--`, `}`, or a
   template literal is now scanned as division, not the start of a regex
   literal (an equation glyph after such a `/` used to be skipped silently).
-- Declaration files (`.d.ts`/`.d.mts`/`.d.cts`) are excluded from every file
-  list, explicit globs included; previously a glob matching build output
-  sitting next to its sources extracted each property twice, with the
-  declaration-file copies failing spuriously. (#23)
 
 ## [0.6.0] - 2026-07-09
 
