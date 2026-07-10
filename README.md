@@ -65,9 +65,15 @@ pabst gen  [files-or-globs]            # generate only; run your own vitest agai
 With no file arguments, pabst discovers your sources: if `tsconfig.json`
 exists, it scans exactly the files `tsc` would compile; otherwise it falls
 back to `src/**`. If neither yields anything, it exits with an error asking
-for an explicit glob. Declaration files (`.d.ts`) are never scanned — tsc
-copies JSDoc into them, so scanning both a declaration and its source would
-extract every property twice.
+for an explicit glob. Discovery stays inside the current directory — a
+tsconfig reaching outside it (say, a monorepo `include` of `../shared`) has
+those files skipped; run pabst in the package that owns them.
+
+Declaration files (`.d.ts`) are skipped by default — tsc copies JSDoc into
+them, so scanning both a declaration and its source would extract every
+property twice. A pattern that explicitly names declarations
+(`pabst gen "index.d.ts"`) is honored, for packages whose hand-written types
+are the source.
 
 Pabst writes the test files it generates to a `.pabst/` directory in your
 project. Those files are regenerated on every run, so there is no reason to
