@@ -56,10 +56,18 @@ and [vitest](https://vitest.dev/), so nothing else is needed.
 ## Usage
 
 ```bash
-pabst test <files-or-globs>            # generate, run, and print a JSON report
+pabst test                             # discover sources, test, print a JSON report
+pabst test <files-or-globs>            # same, on an explicit file list
 pabst test --seed <n> <files-or-globs> # reproduce a prior run's generation
-pabst gen  <files-or-globs>            # generate only; run your own vitest against .pabst/
+pabst gen  [files-or-globs]            # generate only; run your own vitest against .pabst/
 ```
+
+With no file arguments, pabst discovers your sources: if `tsconfig.json`
+exists, it scans exactly the files `tsc` would compile; otherwise it falls
+back to `src/**`. If neither yields anything, it exits with an error asking
+for an explicit glob. Declaration files (`.d.ts`) are never scanned — tsc
+copies JSDoc into them, so scanning both a declaration and its source would
+extract every property twice.
 
 Pabst writes the test files it generates to a `.pabst/` directory in your
 project. Those files are regenerated on every run, so there is no reason to
