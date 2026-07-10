@@ -58,3 +58,88 @@ describe("discoverFiles: nothing to go on", () => {
     );
   });
 });
+
+describe("discoverFiles: tsconfig.json", () => {
+  useTempProject("pabst-disc-tsc-", {
+    "tsconfig.json": JSON.stringify({ include: ["lib"] }),
+    "lib/a.ts": "export const a = 1;\n",
+    "lib/types.d.ts": "export declare const a: number;\n",
+    "src/decoy.ts": "export const s = 1;\n",
+  });
+
+  it("uses the tsconfig file list (declarations dropped), not src/", () => {
+    expect(discoverFiles()).toEqual({
+      files: ["lib/a.ts"],
+      source: "tsconfig.json",
+    });
+  });
+});
+
+describe("discoverFiles: exclude is honored", () => {
+  useTempProject("pabst-disc-excl-", {
+    "tsconfig.json": JSON.stringify({
+      include: ["src"],
+      exclude: ["src/legacy"],
+    }),
+    "src/a.ts": "export const a = 1;\n",
+    "src/legacy/old.ts": "export const o = 1;\n",
+  });
+
+  it("omits excluded files", () => {
+    expect(discoverFiles().files).toEqual(["src/a.ts"]);
+  });
+});
+
+describe("discoverFiles: solution-style tsconfig", () => {
+  useTempProject("pabst-disc-solution-", {
+    "tsconfig.json": JSON.stringify({
+      files: [],
+      references: [{ path: "./packages/a" }],
+    }),
+    "packages/a/tsconfig.json": "{}",
+    "packages/a/a.ts": "export const a = 1;\n",
+    "src/a.ts": "export const a = 1;\n",
+  });
+
+  it("resolves to zero files and falls through to src/", () => {
+    expect(discoverFiles()).toEqual({
+      files: ["src/a.ts"],
+      source: "src/",
+    });
+  });
+});
+
+describe("discoverFiles: tsconfig matching nothing, no src/", () => {
+  useTempProject("pabst-disc-empty-", {
+    "tsconfig.json": JSON.stringify({ include: ["nope"] }),
+  });
+
+  it("throws the no-sources PabstError (18003 is not an error)", () => {
+    expect(() => discoverFiles()).toThrow(
+      /cannot determine where your source code is/,
+    );
+  });
+});
+
+describe("discoverFiles: malformed tsconfig JSON", () => {
+  useTempProject("pabst-disc-garbage-", {
+    "tsconfig.json": "{ not json",
+    "src/a.ts": "export const a = 1;\n",
+  });
+
+  it("throws PabstError naming tsconfig.json, not falling through", () => {
+    expect(() => discoverFiles()).toThrow(PabstError);
+    expect(() => discoverFiles()).toThrow(/^tsconfig\.json:/);
+  });
+});
+
+describe("discoverFiles: unresolvable extends", () => {
+  useTempProject("pabst-disc-extends-", {
+    "tsconfig.json": JSON.stringify({ extends: "./missing.json" }),
+    "src/a.ts": "export const a = 1;\n",
+  });
+
+  it("throws PabstError naming tsconfig.json, not falling through", () => {
+    expect(() => discoverFiles()).toThrow(/^tsconfig\.json:/);
+  });
+});
