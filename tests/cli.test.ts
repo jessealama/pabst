@@ -26,6 +26,18 @@ describe("cli main", () => {
     expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
   });
 
+  it("gen honors an explicitly named declaration file", () => {
+    const { code, stderr } = runMain(["gen", "shadow.d.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
+  });
+
+  it("gen honors a glob that targets declaration files", () => {
+    const { code, stderr } = runMain(["gen", "*.d.ts"]);
+    expect(code).toBe(0);
+    expect(stderr[0]).toContain("generated 1 property across 1 file(s)");
+  });
+
   it("returns 2 on unknown command", () => {
     expect(runMain(["frobnicate", "baz.ts"]).code).toBe(2);
   });
