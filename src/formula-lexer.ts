@@ -30,52 +30,87 @@ const CLOSE = new Set([
   ts.SyntaxKind.CloseBraceToken,
 ]);
 
-/** Tokenize a formula body. Glyphs/fallbacks become connective tokens; the rest is js. */
-export function lexFormula(body: string): FToken[] {
+export interface ScannedToken {
+  kind: ts.SyntaxKind;
+  text: string;
+  start: number;
+  end: number;
+}
+
+/**
+ * Scan `text` with the context fixes the standalone TS scanner does not
+ * apply on its own: `/` regex-vs-division, `>` re-merged into >=, >>, … (the
+ * base scan splits them for generic-closing-`>` handling), and template
+ * continuation after a `${…}` substitution closes (the scanner would
+ * otherwise leave template mode and corrupt the middle/tail text).
+ */
+export function* scanTokens(text: string): Generator<ScannedToken> {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, /*skipTrivia*/ true);
-  scanner.setText(body);
-  const raw: FToken[] = [];
+  scanner.setText(text);
   let kind: ts.SyntaxKind;
   let prev: ts.SyntaxKind | null = null;
+  let prevText = "";
+  // Open-brace count within each active template substitution, innermost last.
+  const templateBraces: number[] = [];
   while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
     if (
       kind === ts.SyntaxKind.SlashToken ||
       kind === ts.SyntaxKind.SlashEqualsToken
     ) {
       // A `/` right after a `\` is the `\/` (or) fallback, not a regex.
-      const afterBackslash = raw[raw.length - 1]?.text === "\\";
-      if (regexCanFollow(prev) && !afterBackslash) {
+      if (regexCanFollow(prev) && prevText !== "\\") {
         const re = scanner.reScanSlashToken();
         if (re === ts.SyntaxKind.RegularExpressionLiteral) kind = re;
       }
     }
-    const text = scanner.getTokenText();
-    const start = scanner.getTokenStart();
-    const end = scanner.getTextPos();
-    rejectQuantifiers(text);
-    const glyph = GLYPH[text];
-    if (glyph) {
-      raw.push({ kind: glyph, text, start, end });
-      prev = kind;
-      continue;
+    if (kind === ts.SyntaxKind.GreaterThanToken) {
+      kind = scanner.reScanGreaterToken();
     }
-    if (text === "iff") {
-      raw.push({ kind: "iff", text, start, end });
-      prev = kind;
-      continue;
+    const top = templateBraces.length - 1;
+    if (kind === ts.SyntaxKind.TemplateHead) {
+      // `` `…${ `` opens a template; its first substitution is now active.
+      templateBraces.push(0);
+    } else if (kind === ts.SyntaxKind.OpenBraceToken && top >= 0) {
+      templateBraces[top] = templateBraces[top]! + 1;
+    } else if (kind === ts.SyntaxKind.CloseBraceToken && top >= 0) {
+      if (templateBraces[top]! > 0) {
+        // an ordinary `}` inside the substitution
+        templateBraces[top] = templateBraces[top]! - 1;
+      } else {
+        // This `}` ends the substitution: re-scan as template continuation so
+        // the following text stays template text rather than loose tokens.
+        kind = scanner.reScanTemplateToken(/*isTaggedTemplate*/ false);
+        if (kind === ts.SyntaxKind.TemplateTail) templateBraces.pop();
+        // TemplateMiddle keeps the same level (a new substitution follows).
+      }
     }
-    if (OPEN.has(kind)) {
-      raw.push({ kind: "open", text, start, end });
-      prev = kind;
-      continue;
-    }
-    if (CLOSE.has(kind)) {
-      raw.push({ kind: "close", text, start, end });
-      prev = kind;
-      continue;
-    }
-    raw.push({ kind: "js", text, start, end });
+    const tokenText = scanner.getTokenText();
+    yield {
+      kind,
+      text: tokenText,
+      start: scanner.getTokenStart(),
+      end: scanner.getTextPos(),
+    };
     prev = kind;
+    prevText = tokenText;
+  }
+}
+
+/** Tokenize a formula body. Glyphs/fallbacks become connective tokens; the rest is js. */
+export function lexFormula(body: string): FToken[] {
+  const raw: FToken[] = [];
+  for (const { kind, text, start, end } of scanTokens(body)) {
+    rejectQuantifiers(text);
+    const fkind: FTokenKind =
+      GLYPH[text] ??
+      (text === "iff"
+        ? "iff"
+        : OPEN.has(kind)
+          ? "open"
+          : CLOSE.has(kind)
+            ? "close"
+            : "js");
+    raw.push({ kind: fkind, text, start, end });
   }
   return mergeArrowFallbacks(mergeSlashFallbacks(raw));
 }
@@ -83,19 +118,25 @@ export function lexFormula(body: string): FToken[] {
 /** A `/` can begin a regex unless the previous token ends a value (then it's division). */
 export function regexCanFollow(prev: ts.SyntaxKind | null): boolean {
   if (prev === null) return true;
-  if (prev === ts.SyntaxKind.Identifier) return false;
-  if (
+  switch (prev) {
+    case ts.SyntaxKind.Identifier:
+    case ts.SyntaxKind.CloseParenToken:
+    case ts.SyntaxKind.CloseBracketToken:
+    case ts.SyntaxKind.CloseBraceToken:
+    case ts.SyntaxKind.RegularExpressionLiteral:
+    case ts.SyntaxKind.TemplateTail:
+    case ts.SyntaxKind.ThisKeyword:
+    case ts.SyntaxKind.TrueKeyword:
+    case ts.SyntaxKind.FalseKeyword:
+    case ts.SyntaxKind.NullKeyword:
+    case ts.SyntaxKind.PlusPlusToken:
+    case ts.SyntaxKind.MinusMinusToken:
+      return false;
+  }
+  return !(
     prev >= ts.SyntaxKind.FirstLiteralToken &&
     prev <= ts.SyntaxKind.LastLiteralToken
-  )
-    return false;
-  if (
-    prev === ts.SyntaxKind.CloseParenToken ||
-    prev === ts.SyntaxKind.CloseBracketToken
-  )
-    return false;
-  if (prev === ts.SyntaxKind.RegularExpressionLiteral) return false;
-  return true;
+  );
 }
 
 function rejectQuantifiers(text: string): void {
@@ -149,13 +190,7 @@ function mergeArrowFallbacks(toks: FToken[]): FToken[] {
   return out;
 }
 
-/**
- * Merge a real slash adjacent to a backslash: /\ → and, \/ → or.
- *
- * Known limitation: template literals with `${…}` interpolation that contain
- * connective glyphs may mis-tokenize; property bodies rarely use interpolation.
- * Hardening via reScanTemplateToken is out of scope.
- */
+/** Merge a real slash adjacent to a backslash: /\ → and, \/ → or. */
 function mergeSlashFallbacks(toks: FToken[]): FToken[] {
   const out: FToken[] = [];
   for (let i = 0; i < toks.length; i++) {

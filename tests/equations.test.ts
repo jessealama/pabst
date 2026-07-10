@@ -60,6 +60,20 @@ describe("desugarEquations — rewrites", () => {
       "Object.is(s, `a${ `b${Object.is(x, y)}` }d`)",
     );
   });
+  it("treats / after this, true, postfix ++, and a template tail as division", () => {
+    expect(desugarEquations("this / a ≡ b / c")).toBe(
+      "Object.is(this / a, b / c)",
+    );
+    expect(desugarEquations("i++ / n ≡ x / d")).toBe(
+      "Object.is(i++ / n, x / d)",
+    );
+    expect(desugarEquations("true / a ≡ b / c")).toBe(
+      "Object.is(true / a, b / c)",
+    );
+    expect(desugarEquations("`${x}` / a ≡ b / c")).toBe(
+      "Object.is(`${x}` / a, b / c)",
+    );
+  });
 });
 
 describe("desugarEquations — leaves plain JS alone", () => {
@@ -80,10 +94,6 @@ describe("desugarEquations — leaves plain JS alone", () => {
     expect(desugarEquations("x >= y")).toBe("x >= y");
     expect(desugarEquations("f(x) >= 0")).toBe("f(x) >= 0");
     expect(desugarEquations("x >>> 2")).toBe("x >>> 2");
-  });
-  it("does not treat >>= or >>>= (compound tokens with =) as assignments", () => {
-    expect(desugarEquations("x >>= 2")).toBe("x >>= 2");
-    expect(desugarEquations("x >>>= 2")).toBe("x >>>= 2");
   });
   it("keeps >= intact inside a real equation", () => {
     expect(desugarEquations("x >= 1 ≡ flag")).toBe("Object.is(x >= 1, flag)");
@@ -141,6 +151,21 @@ describe("desugarEquations — rejections", () => {
     throws("x + 0 = x", /JS assignment/);
     throws('typeof x = "number"', /write A ≡ B/);
   });
+  it("bans compound assignments at any depth", () => {
+    throws("x += 1", /assignments are not allowed/);
+    throws("x ||= y", /assignments are not allowed/);
+    throws("x >>= 2", /assignments are not allowed/);
+    throws("x >>>= 2", /assignments are not allowed/);
+    throws(
+      "xs.reduce((n, x) => ((n += x), n), 0) > 0",
+      /assignments are not allowed/,
+    );
+  });
+  it("rejects an equation glyph fused with an adjacent =", () => {
+    throws("a ≡= b", /fused with an adjacent operator/);
+    throws("a =≡ b", /fused with an adjacent operator/);
+    throws("a ≢= b", /fused with an adjacent operator/);
+  });
   it("rejects ≠ with a hint to ≢", () => {
     throws("a ≠ b", /write ≢/);
     throws("a ≠ b", /a ≠ b/);
@@ -172,6 +197,14 @@ describe("desugarEquations — rejections", () => {
   it("allows a ?? whose left operand is not an equation", () => {
     expect(desugarEquations("a ≡ (b ?? c)")).toBe("Object.is(a, (b ?? c))");
     expect(desugarEquations("f(x ?? y) ≡ z")).toBe("Object.is(f(x ?? y), z)");
+  });
+  it("allows root-level ?? when the atom has no equation", () => {
+    expect(desugarEquations("((x = 1) => x)(0) ?? true")).toBe(
+      "((x = 1) => x)(0) ?? true",
+    );
+  });
+  it("allows root-level ?? when neither ?? operand is an equation", () => {
+    expect(desugarEquations("f(a ≡ b) ?? c")).toBe("f(Object.is(a, b)) ?? c");
   });
   it("rejects an equation regrouped into a ternary condition", () => {
     throws("a ≡ b ? c : d", /became the ternary's condition/);

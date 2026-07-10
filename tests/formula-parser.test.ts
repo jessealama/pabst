@@ -52,6 +52,12 @@ describe("parseBody — atoms keep their JS", () => {
       body: '__bool(xs.every(x => x > 0 && x < 10), "xs.every(x => x > 0 && x < 10)")',
     });
   });
+  it("keeps a connective glyph inside template text within one atom", () => {
+    expect(lo("p(`${a} ∧ ${b}`)")).toEqual({
+      preconditions: [],
+      body: '__bool(p(`${a} ∧ ${b}`), "p(`${a} ∧ ${b}`)")',
+    });
+  });
 });
 
 describe("parseBody — equations", () => {
@@ -93,6 +99,16 @@ describe("parseBody — equations", () => {
   });
   it("rejects chained equations", () => {
     expectPabstError(() => parseBody("a ≡ b ≡ c"), /chained equations/);
+  });
+  it("allows JS ! on an equation side (the ¬ rule judges the desugared atom)", () => {
+    expect(lo("!x ≡ y")).toEqual({
+      preconditions: [],
+      body: '__bool(Object.is(!x, y), "!x ≡ y")',
+    });
+    expect(lo("(!x) ≡ y")).toEqual({
+      preconditions: [],
+      body: '__bool(Object.is((!x), y), "(!x) ≡ y")',
+    });
   });
 });
 

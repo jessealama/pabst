@@ -1,4 +1,3 @@
-import ts from "typescript";
 import type { Formula } from "./formula-ast.js";
 import { lexFormula, type FToken } from "./formula-lexer.js";
 import { PabstError } from "./errors.js";
@@ -100,40 +99,7 @@ function makeAtom(toks: FToken[], src: string): Formula {
   const text = src.slice(toks[0]!.start, toks[toks.length - 1]!.end).trim();
   if (text.length === 0)
     throw new PabstError("empty operand: a connective is missing a side");
-  enforceLeafRule(text);
+  // desugarEquations also enforces the leaf rule (no top-level &&/||/!)
+  // on the one post-substitution parse of the atom.
   return { kind: "atom", text, js: desugarEquations(text) };
-}
-
-/** Reject a leaf whose TOP-LEVEL node is JS &&, ||, or prefix !. Nested uses are fine. */
-function enforceLeafRule(text: string): void {
-  const sf = ts.createSourceFile(
-    "__atom.ts",
-    `(${text});`,
-    ts.ScriptTarget.Latest,
-    true,
-  );
-  const stmt = sf.statements[0];
-  if (!stmt || !ts.isExpressionStatement(stmt)) return;
-  let expr: ts.Expression = stmt.expression;
-  while (ts.isParenthesizedExpression(expr)) expr = expr.expression;
-  if (ts.isBinaryExpression(expr)) {
-    if (expr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
-      throw new PabstError(
-        `use ∧ for conjunction at the property's top level, not JS && (in: ${text})`,
-      );
-    }
-    if (expr.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
-      throw new PabstError(
-        `use ∨ for disjunction at the property's top level, not JS || (in: ${text})`,
-      );
-    }
-  }
-  if (
-    ts.isPrefixUnaryExpression(expr) &&
-    expr.operator === ts.SyntaxKind.ExclamationToken
-  ) {
-    throw new PabstError(
-      `use ¬ for negation at the property's top level, not JS ! (in: ${text})`,
-    );
-  }
 }

@@ -22,9 +22,19 @@ Notable changes to pabst. The format follows
 
 - JS loose equality `==` and loose inequality `!=` in a formula atom are now
   compile errors: use `≡` / `≢` (identity) or `===` / `!==` (JS strict).
-- Plain `=` assignment expressions cannot appear inside a formula atom
-  (default-parameter initializers in callbacks are fine), and `≠` is
-  rejected with a hint to write `≢`.
+- Assignment expressions — plain `=` and the compound forms (`+=`, `||=`,
+  `>>=`, …) — cannot appear inside a formula atom (default-parameter
+  initializers in callbacks are fine), and `≠` is rejected with a hint to
+  write `≢`.
+
+### Fixed
+
+- Connective glyphs inside template-literal text (e.g. ``p(`${a} ∧ ${b}`)``)
+  no longer split the atom: the formula lexer now tracks `${…}`
+  substitutions and stays in template mode.
+- A `/` after `this`, `true`/`false`/`null`, postfix `++`/`--`, `}`, or a
+  template literal is now scanned as division, not the start of a regex
+  literal (an equation glyph after such a `/` used to be skipped silently).
 
 ## [0.6.0] - 2026-07-09
 

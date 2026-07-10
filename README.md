@@ -150,9 +150,10 @@ spelling of an equation is a plain `Object.is` call).
   `a ≡ b ? c : d` are errors (parenthesize the intended grouping, e.g.
   `a ≡ (b ? c : d)`). Chains like `a ≡ b ≡ c` are errors — write
   `a ≡ b ∧ b ≡ c`. Loose `==`/`!=` are errors (use `≡`/`≢` or `===`/`!==`);
-  `===`/`!==` keep their exact JS meaning; `=` is JS assignment and cannot
-  appear in a formula (default-parameter initializers in callbacks are
-  fine); `≠` is rejected with a hint to write `≢`.
+  `===`/`!==` keep their exact JS meaning; assignments — plain `=` and
+  compound forms like `+=` — cannot appear in a formula (default-parameter
+  initializers in callbacks are fine); `≠` is rejected with a hint to
+  write `≢`.
 - **Atoms are JavaScript** and must be genuine booleans — every atom is checked
   at runtime (`5 ∧ true` is an error, not a coercion). You may **not** use JS
   `&&`/`||`/`!` at an atom's top level — use the glyphs. They remain legal
