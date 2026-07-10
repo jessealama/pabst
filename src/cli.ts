@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { globSync, readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { generate } from "./codegen.js";
-import { isTsSource } from "./discover.js";
+import { discoverFiles, isTsSource } from "./discover.js";
 import { PabstError } from "./errors.js";
 import { runTests } from "./run.js";
 import { randomSeed, parseSeed } from "./seed.js";
@@ -13,7 +13,7 @@ function readVersion(): string {
   return JSON.parse(readFileSync(url, "utf8")).version as string;
 }
 
-const USAGE = "usage: pabst <test|gen> [--seed <n>] <files-or-globs...>";
+const USAGE = "usage: pabst <test|gen> [--seed <n>] [files-or-globs...]";
 
 const HELP = `${USAGE}
 
@@ -21,6 +21,10 @@ commands:
   test  generate property tests from @ensures annotations, run them, and
         print a JSON report to stdout
   gen   generate only; run your own vitest against .pabst/
+
+when no files are given, pabst discovers your sources: the files that
+tsconfig.json would compile or, failing that, src/**. declaration files
+(.d.ts) are never scanned.
 
 options:
   --seed <n>  reproduce a prior run's generation (n is echoed in the report)
@@ -63,11 +67,6 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     console.error(USAGE);
     return 2;
   }
-  if (patterns.length === 0) {
-    console.error("error: no files or globs provided");
-    return 2;
-  }
-
   // Same policy as compilation below: user-facing errors (PabstError) map to
   // the documented exit-2 error mode; anything else is an internal bug and
   // crashes loudly.
@@ -82,12 +81,33 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     throw e;
   }
 
-  const files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter(
-    isTsSource,
-  );
-  if (files.length === 0) {
-    console.error("error: no matching .ts files");
-    return 2;
+  // Zero-argument mode discovers the project's sources; discovery failures
+  // (nothing found, malformed tsconfig) are user-facing exit-2 errors like
+  // any other PabstError.
+  let files: string[];
+  if (patterns.length === 0) {
+    let discovered;
+    try {
+      discovered = discoverFiles();
+    } catch (e) {
+      if (e instanceof PabstError) {
+        console.error(`error: ${e.message}`);
+        return 2;
+      }
+      throw e;
+    }
+    files = discovered.files;
+    console.error(
+      `pabst: no files given; discovered ${files.length} file(s) via ${discovered.source}`,
+    );
+  } else {
+    files = [...new Set(patterns.flatMap((p) => globSync(p)))].filter(
+      isTsSource,
+    );
+    if (files.length === 0) {
+      console.error("error: no matching .ts files");
+      return 2;
+    }
   }
 
   const startedAt = new Date().toISOString();

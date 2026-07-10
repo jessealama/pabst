@@ -30,8 +30,13 @@ describe("cli main", () => {
     expect(runMain(["frobnicate", "baz.ts"]).code).toBe(2);
   });
 
-  it("returns 2 when no patterns are given", () => {
-    expect(runMain(["gen"]).code).toBe(2);
+  it("returns 2 when no patterns are given and nothing is discoverable", () => {
+    const { code, stderr } = runMain(["gen"]);
+    expect(code).toBe(2);
+    expect(stderr).toHaveLength(1);
+    expect(stderr[0]).toBe(
+      'error: cannot determine where your source code is; pass files or globs (e.g. pabst test "src/**/*.ts")',
+    );
   });
 
   it("returns 2 with usage on an unknown option", () => {
@@ -71,6 +76,55 @@ describe("cli main", () => {
 
   it("returns 2 when no .ts files match the patterns", () => {
     expect(runMain(["gen", "*.nope"]).code).toBe(2);
+  });
+});
+
+describe("cli zero-argument discovery", () => {
+  describe("with a src/ directory", () => {
+    useTempProject("pabst-cli-zerosrc-", {
+      "src/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "src/types.d.ts": `export declare function qux(n: number): number;\n`,
+    });
+
+    it("gen discovers src/ sources and announces the discovery", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(0);
+      expect(stderr[0]).toBe(
+        "pabst: no files given; discovered 1 file(s) via src/",
+      );
+      expect(stderr[1]).toContain("generated 1 property across 1 file(s)");
+    });
+  });
+
+  describe("with a tsconfig.json", () => {
+    useTempProject("pabst-cli-zerotsc-", {
+      "tsconfig.json": JSON.stringify({ include: ["lib"] }),
+      "lib/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "src/decoy.ts": `export function decoy(): number { return 1; }\n`,
+    });
+
+    it("gen discovers via tsconfig.json, not src/", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(0);
+      expect(stderr[0]).toBe(
+        "pabst: no files given; discovered 1 file(s) via tsconfig.json",
+      );
+      expect(stderr[1]).toContain("generated 1 property across 1 file(s)");
+    });
+  });
+
+  describe("with a malformed tsconfig.json", () => {
+    useTempProject("pabst-cli-zerobad-", {
+      "tsconfig.json": JSON.stringify({ extends: "./missing.json" }),
+      "src/a.ts": `export const a = 1;\n`,
+    });
+
+    it("gen exits 2 with the tsconfig diagnostic, not falling through", () => {
+      const { code, stderr } = runMain(["gen"]);
+      expect(code).toBe(2);
+      expect(stderr).toHaveLength(1);
+      expect(stderr[0]).toContain("error: tsconfig.json:");
+    });
   });
 });
 
