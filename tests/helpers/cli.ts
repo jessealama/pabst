@@ -44,7 +44,9 @@ export function useTempProject(
   const prevCwd = process.cwd();
   beforeAll(() => {
     for (const [name, text] of Object.entries(files)) {
-      fs.writeFileSync(path.join(dir, name), text, "utf8");
+      const dest = path.join(dir, name);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, text, "utf8");
     }
     process.chdir(dir);
   });
