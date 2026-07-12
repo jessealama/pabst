@@ -173,10 +173,10 @@ describe("parsePrefix — interval constraints", () => {
     );
   });
 
-  it("hints about open intervals for a half-open '[lo, hi)'", () => {
+  it("reports a missing close delimiter for a half-open '[lo, hi)' (until the scanner learns intervals)", () => {
     expectPabstError(
       () => parsePrefix("forall (x: int ∈ [1, 30)), x === x"),
-      /closed bounds/,
+      /missing its closing/,
     );
   });
 

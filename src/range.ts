@@ -1,19 +1,18 @@
 import { PabstError } from "./errors.js";
 import type { Domain, Range } from "./ir.js";
 
-const OPEN_HINT =
-  "open/half-open intervals are not supported; use closed bounds, " +
-  "e.g. ∈ [1, 29] instead of ∈ [1, 30)";
-
 const INT_LITERAL = /^[+-]?\d+$/;
 const BIGINT_LITERAL = /^[+-]?\d+n?$/;
 const NUMBER_LITERAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+const MAX_SAFE = 9007199254740991n;
 
 export function isNumericDomain(d: Domain): boolean {
   return d === "int" || d === "nat" || d === "number" || d === "bigint";
 }
 
-/** Parse and validate a closed-interval constraint like "[1, 30]". */
+/** Parse and validate an interval constraint like "[1, 30]" or "(0, 1]".
+ * A round bracket excludes its endpoint. */
 export function parseRange(text: string, domain: Domain): Range {
   if (!isNumericDomain(domain)) {
     throw new PabstError(
@@ -21,20 +20,16 @@ export function parseRange(text: string, domain: Domain): Range {
         `only int, nat, number, and bigint do`,
     );
   }
-  if (text.startsWith("(") || text.endsWith(")")) {
-    throw new PabstError(OPEN_HINT);
-  }
-  if (!text.startsWith("[")) {
+  const minOpen = text.startsWith("(");
+  if (!minOpen && !text.startsWith("[")) {
     throw new PabstError(
-      `expected interval '[lo, hi]' after ∈, got: ${text || "(nothing)"}`,
+      `expected interval '[lo, hi]' or '(lo, hi]' after ∈, got: ${text || "(nothing)"}`,
     );
   }
-  const close = text.indexOf("]");
+  const close = text.search(/[\])]/);
   if (close === -1) {
-    // A half-open "[1, 30)" loses its ')' to the binder-group scanner,
-    // so a missing ']' is the usual symptom of attempted open bounds.
     throw new PabstError(
-      `interval is missing its closing ']' (in: ${text}) — ${OPEN_HINT}`,
+      `interval is missing its closing ']' or ')' (in: ${text})`,
     );
   }
   if (close !== text.length - 1) {
@@ -42,7 +37,8 @@ export function parseRange(text: string, domain: Domain): Range {
       `unexpected text after interval: '${text.slice(close + 1).trim()}' (in: ${text})`,
     );
   }
-  const parts = text.slice(1, -1).split(",");
+  const maxOpen = text[close] === ")";
+  const parts = text.slice(1, close).split(",");
   if (parts.length !== 2) {
     throw new PabstError(
       `expected exactly two endpoints '[lo, hi]', got: ${text}`,
@@ -50,21 +46,83 @@ export function parseRange(text: string, domain: Domain): Range {
   }
   const min = parseEndpoint(parts[0]!.trim(), domain);
   const max = parseEndpoint(parts[1]!.trim(), domain);
-  if (isEmptyInterval(min, max, domain)) {
-    const zeroNote =
-      domain === "number" && Number(min) === 0 && Number(max) === 0
-        ? " — fast-check orders -0 below 0, so this interval contains no values"
-        : "";
-    throw new PabstError(
-      `empty interval: ${min} > ${max} (in: ${text})${zeroNote}`,
-    );
+  if (domain === "number") {
+    validateNumberInterval(min, max, minOpen, maxOpen, text);
+  } else {
+    validateIntegerInterval(min, max, minOpen, maxOpen, domain, text);
   }
-  if (domain === "nat" && BigInt(min) < 0n) {
+  const range: Range = {};
+  if (min !== undefined) range.min = min;
+  if (max !== undefined) range.max = max;
+  if (minOpen) range.minOpen = true;
+  if (maxOpen) range.maxOpen = true;
+  return range;
+}
+
+/** An open integer bound excludes exactly one value, so validity is judged
+ * on the ±1-adjusted bounds — the same adjustment lowering applies, since
+ * fc.integer/fc.bigInt have no exclusion options. */
+function validateIntegerInterval(
+  min: string | undefined,
+  max: string | undefined,
+  minOpen: boolean,
+  maxOpen: boolean,
+  domain: Domain,
+  text: string,
+): void {
+  const eMin =
+    min === undefined ? undefined : BigInt(min) + (minOpen ? 1n : 0n);
+  const eMax =
+    max === undefined ? undefined : BigInt(max) - (maxOpen ? 1n : 0n);
+  if (domain === "nat" && eMin !== undefined && eMin < 0n) {
     throw new PabstError(
       `nat interval cannot include negative values (in: ${text})`,
     );
   }
-  return { min, max };
+  const lo = domain === "nat" && eMin === undefined ? 0n : eMin;
+  if (lo !== undefined && eMax !== undefined && lo > eMax) {
+    throw new PabstError(`empty interval: no ${domain} satisfies ${text}`);
+  }
+  if (domain !== "bigint") {
+    for (const e of [eMin, eMax]) {
+      if (e !== undefined && (e > MAX_SAFE || e < -MAX_SAFE)) {
+        throw new PabstError(
+          `interval endpoint, adjusted ±1 for its open bound (${e}), ` +
+            `is outside the safe integer range (in: ${text})`,
+        );
+      }
+    }
+  }
+}
+
+function validateNumberInterval(
+  min: string | undefined,
+  max: string | undefined,
+  minOpen: boolean,
+  maxOpen: boolean,
+  text: string,
+): void {
+  if (min === undefined || max === undefined) return;
+  const lo = Number(min);
+  const hi = Number(max);
+  if (lo > hi) {
+    throw new PabstError(`empty interval: ${min} > ${max} (in: ${text})`);
+  }
+  if (lo !== hi) return;
+  if (minOpen || maxOpen) {
+    // minExcluded/maxExcluded exclude both zeros, matching numeric
+    // equality, so (-0, 0] and [-0, 0) are as empty as (1, 1].
+    throw new PabstError(
+      `empty interval: ${text} contains no values (equal endpoints with an excluded bound)`,
+    );
+  }
+  // fast-check orders -0 below +0, so [0, -0] is empty for fc.double.
+  if (lo === 0 && Object.is(hi, -0) && !Object.is(lo, -0)) {
+    throw new PabstError(
+      `empty interval: ${min} > ${max} (in: ${text})` +
+        ` — fast-check orders -0 below 0, so this interval contains no values`,
+    );
+  }
 }
 
 function parseEndpoint(lit: string, domain: Domain): string {
@@ -104,13 +162,4 @@ function parseEndpoint(lit: string, domain: Domain): string {
 function normalizeLiteral(lit: string): string {
   const unsigned = lit.startsWith("+") ? lit.slice(1) : lit;
   return unsigned.replace(/^(-?)0+(?=\d)/, "$1");
-}
-
-function isEmptyInterval(min: string, max: string, domain: Domain): boolean {
-  if (domain !== "number") return BigInt(min) > BigInt(max);
-  const lo = Number(min);
-  const hi = Number(max);
-  if (lo > hi) return true;
-  // fast-check orders -0 below +0, so [0, -0] is empty for fc.double.
-  return lo === 0 && hi === 0 && Object.is(hi, -0) && !Object.is(lo, -0);
 }

@@ -116,12 +116,6 @@ describe("parseRange — rejected", () => {
     );
   });
 
-  it("rejects open/half-open notation with a closed-bounds hint", () => {
-    expectPabstError(() => parseRange("[1, 30)", "int"), /closed bounds/);
-    expectPabstError(() => parseRange("(0, 1]", "number"), /closed bounds/);
-    expectPabstError(() => parseRange("(0, 1)", "number"), /closed bounds/);
-  });
-
   it("rejects intervals on non-numeric domains", () => {
     expectPabstError(() => parseRange("[1, 2]", "boolean"), /does not support/);
     expectPabstError(() => parseRange("[1, 2]", "string"), /does not support/);
@@ -146,6 +140,87 @@ describe("parseRange — rejected", () => {
   it("rejects text that is not an interval at all", () => {
     expectPabstError(() => parseRange("hello", "int"), /expected interval/);
     expectPabstError(() => parseRange("", "int"), /expected interval/);
+  });
+});
+
+describe("parseRange — open and half-open intervals", () => {
+  it("parses a half-open number interval (0, 1]", () => {
+    expect(parseRange("(0, 1]", "number")).toEqual({
+      min: "0",
+      max: "1",
+      minOpen: true,
+    });
+  });
+
+  it("parses a half-open number interval [0, 1)", () => {
+    expect(parseRange("[0, 1)", "number")).toEqual({
+      min: "0",
+      max: "1",
+      maxOpen: true,
+    });
+  });
+
+  it("parses a fully open int interval, keeping the literals verbatim", () => {
+    expect(parseRange("(0, 10)", "int")).toEqual({
+      min: "0",
+      max: "10",
+      minOpen: true,
+      maxOpen: true,
+    });
+  });
+
+  it("parses an open bigint interval with n-suffixed endpoints", () => {
+    expect(parseRange("(0n, 100n]", "bigint")).toEqual({
+      min: "0",
+      max: "100",
+      minOpen: true,
+    });
+  });
+
+  it("accepts a nat interval whose open lower endpoint is -1", () => {
+    expect(parseRange("(-1, 5]", "nat")).toEqual({
+      min: "-1",
+      max: "5",
+      minOpen: true,
+    });
+  });
+
+  it("normalizes open endpoints like closed ones", () => {
+    expect(parseRange("(+0.5, 010)", "number")).toEqual({
+      min: "0.5",
+      max: "10",
+      minOpen: true,
+      maxOpen: true,
+    });
+  });
+});
+
+describe("parseRange — open-interval rejections", () => {
+  it("rejects integer intervals that contain no integer", () => {
+    expectPabstError(() => parseRange("(3, 4)", "int"), /empty interval/);
+    expectPabstError(() => parseRange("(5, 5]", "int"), /empty interval/);
+    expectPabstError(() => parseRange("[5, 5)", "int"), /empty interval/);
+    expectPabstError(() => parseRange("(0n, 1n)", "bigint"), /empty interval/);
+  });
+
+  it("rejects number intervals with equal endpoints and an open bound", () => {
+    expectPabstError(() => parseRange("(1, 1)", "number"), /empty interval/);
+    expectPabstError(() => parseRange("[1, 1)", "number"), /empty interval/);
+    expectPabstError(() => parseRange("(1, 1]", "number"), /empty interval/);
+    // fc's minExcluded/maxExcluded exclude both zeros, so these are empty too.
+    expectPabstError(() => parseRange("(-0, 0]", "number"), /empty interval/);
+    expectPabstError(() => parseRange("[-0, 0)", "number"), /empty interval/);
+  });
+
+  it("rejects nat intervals whose adjusted lower bound is still negative", () => {
+    expectPabstError(() => parseRange("(-5, 3]", "nat"), /nat interval/);
+  });
+
+  it("rejects a half-open interval with trailing text", () => {
+    expectPabstError(
+      () => parseRange("(0, 1] oops", "number"),
+      /unexpected text after interval/,
+    );
   });
 });
 
