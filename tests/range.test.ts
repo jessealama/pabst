@@ -101,10 +101,6 @@ describe("parseRange — rejected", () => {
   });
 
   it("rejects non-finite or malformed number endpoints", () => {
-    expectPabstError(
-      () => parseRange("[0, Infinity]", "number"),
-      /finite number/,
-    );
     expectPabstError(() => parseRange("[0, 1e400]", "number"), /finite number/);
     expectPabstError(() => parseRange("[0, NaN]", "number"), /finite number/);
   });
@@ -221,6 +217,90 @@ describe("parseRange — open-interval rejections", () => {
       () => parseRange("(0, 1] oops", "number"),
       /unexpected text after interval/,
     );
+  });
+});
+
+describe("parseRange — unbounded endpoints", () => {
+  it("parses (0, ∞) for number, excluding the infinity", () => {
+    expect(parseRange("(0, ∞)", "number")).toEqual({
+      min: "0",
+      minOpen: true,
+      maxOpen: true,
+    });
+  });
+
+  it("parses closed ∞ endpoints for number: Infinity is a value there", () => {
+    expect(parseRange("[0, ∞]", "number")).toEqual({ min: "0" });
+    expect(parseRange("[-∞, 0]", "number")).toEqual({ max: "0" });
+    expect(parseRange("[-∞, ∞]", "number")).toEqual({});
+    expect(parseRange("[0, Infinity]", "number")).toEqual({ min: "0" });
+  });
+
+  it("accepts the ASCII Infinity spelling and a redundant +", () => {
+    expect(parseRange("(0, Infinity)", "number")).toEqual({
+      min: "0",
+      minOpen: true,
+      maxOpen: true,
+    });
+    expect(parseRange("(0, +∞)", "number")).toEqual({
+      min: "0",
+      minOpen: true,
+      maxOpen: true,
+    });
+    expect(parseRange("(-Infinity, 0]", "int")).toEqual({
+      max: "0",
+      minOpen: true,
+    });
+  });
+
+  it("parses unbounded integer intervals when the ∞ endpoint is open", () => {
+    expect(parseRange("(0, ∞)", "int")).toEqual({
+      min: "0",
+      minOpen: true,
+      maxOpen: true,
+    });
+    expect(parseRange("(-∞, 5]", "int")).toEqual({ max: "5", minOpen: true });
+    expect(parseRange("(-∞, ∞)", "bigint")).toEqual({
+      minOpen: true,
+      maxOpen: true,
+    });
+  });
+
+  it("allows an unbounded nat lower endpoint (clamped to 0 at lowering)", () => {
+    expect(parseRange("(-∞, 5]", "nat")).toEqual({ max: "5", minOpen: true });
+  });
+
+  it("rejects closed ∞ endpoints for int, nat, and bigint", () => {
+    expectPabstError(() => parseRange("[0, ∞]", "int"), /must be open/);
+    expectPabstError(() => parseRange("[-∞, 5]", "nat"), /must be open/);
+    expectPabstError(() => parseRange("[0n, ∞]", "bigint"), /must be open/);
+  });
+
+  it("rejects ∞ on the wrong side", () => {
+    expectPabstError(
+      () => parseRange("(∞, 5]", "int"),
+      /lower endpoint cannot be \+∞/,
+    );
+    expectPabstError(
+      () => parseRange("[0, -∞)", "number"),
+      /upper endpoint cannot be -∞/,
+    );
+  });
+
+  it("rejects nat intervals that are empty over the naturals", () => {
+    expectPabstError(() => parseRange("(-∞, -1]", "nat"), /empty interval/);
+  });
+
+  it("rejects an open endpoint whose ±1 adjustment leaves the safe range", () => {
+    expectPabstError(
+      () => parseRange("(9007199254740991, ∞)", "int"),
+      /safe integer/,
+    );
+  });
+
+  it("still rejects overflowing and malformed number literals", () => {
+    expectPabstError(() => parseRange("[0, 1e400]", "number"), /finite number/);
+    expectPabstError(() => parseRange("[0, NaN]", "number"), /finite number/);
   });
 });
 

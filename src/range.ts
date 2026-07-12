@@ -4,6 +4,7 @@ import type { Domain, Range } from "./ir.js";
 const INT_LITERAL = /^[+-]?\d+$/;
 const BIGINT_LITERAL = /^[+-]?\d+n?$/;
 const NUMBER_LITERAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+const INFINITE_LITERAL = /^([+-]?)(?:∞|Infinity)$/;
 
 const MAX_SAFE = 9007199254740991n;
 
@@ -44,8 +45,8 @@ export function parseRange(text: string, domain: Domain): Range {
       `expected exactly two endpoints '[lo, hi]', got: ${text}`,
     );
   }
-  const min = parseEndpoint(parts[0]!.trim(), domain);
-  const max = parseEndpoint(parts[1]!.trim(), domain);
+  const min = parseBound(parts[0]!.trim(), "lower", minOpen, domain);
+  const max = parseBound(parts[1]!.trim(), "upper", maxOpen, domain);
   if (domain === "number") {
     validateNumberInterval(min, max, minOpen, maxOpen, text);
   } else {
@@ -57,6 +58,36 @@ export function parseRange(text: string, domain: Domain): Range {
   if (minOpen) range.minOpen = true;
   if (maxOpen) range.maxOpen = true;
   return range;
+}
+
+/** Returns the normalized endpoint literal, or undefined for an unbounded
+ * (±∞) endpoint. */
+function parseBound(
+  lit: string,
+  side: "lower" | "upper",
+  open: boolean,
+  domain: Domain,
+): string | undefined {
+  const inf = INFINITE_LITERAL.exec(lit);
+  if (!inf) return parseEndpoint(lit, domain);
+  if (side === "lower" && inf[1] !== "-") {
+    throw new PabstError(
+      `an interval's lower endpoint cannot be +∞ (in endpoint '${lit}')`,
+    );
+  }
+  if (side === "upper" && inf[1] === "-") {
+    throw new PabstError(
+      `an interval's upper endpoint cannot be -∞ (in endpoint '${lit}')`,
+    );
+  }
+  if (domain !== "number" && !open) {
+    throw new PabstError(
+      `${domain} has no infinite values, so an ∞ endpoint must be open — ` +
+        `use ${side === "lower" ? `'(${lit},'` : `'${lit})'`} (a closed ∞ ` +
+        `bound is only meaningful for number, where Infinity is a value)`,
+    );
+  }
+  return undefined;
 }
 
 /** An open integer bound excludes exactly one value, so validity is judged
