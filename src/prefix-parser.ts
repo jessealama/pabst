@@ -12,13 +12,6 @@ const FORALL = /^\s*(?:forall|∀)\s*/;
 
 const MEMBERSHIP = /∈|\bin\b/;
 
-// An attempted open interval puts '(' right after the membership token in
-// domain position (': number ∈ ('); requiring that context keeps the hint
-// away from unrelated 'in (' text in the property body.
-const OPEN_INTERVAL_ATTEMPT = new RegExp(
-  `:\\s*\\w+\\s*(?:${MEMBERSHIP.source})\\s*\\(`,
-);
-
 export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
     throw new PabstError(
@@ -42,7 +35,12 @@ export function parsePrefix(formula: string): ParsedPrefix {
     const start = i;
     let depth = 0;
     let j = i;
-    for (; j < formula.length; j++) {
+    while (j < formula.length) {
+      const atomEnd = intervalAtomEnd(formula, j);
+      if (atomEnd !== -1) {
+        j = atomEnd;
+        continue;
+      }
       const c = formula[j]!;
       if (c === "(") depth++;
       else if (c === ")") {
@@ -52,15 +50,11 @@ export function parsePrefix(formula: string): ParsedPrefix {
           break;
         }
       }
+      j++;
     }
     if (depth !== 0) {
-      const rest = formula.slice(start);
-      const openInterval = OPEN_INTERVAL_ATTEMPT.test(rest)
-        ? " (open/half-open intervals like (0, 1] are not supported; " +
-          "use closed bounds [lo, hi])"
-        : "";
       throw new PabstError(
-        `unbalanced parentheses in binder group: ${rest}${openInterval}`,
+        `unbalanced parentheses in binder group: ${formula.slice(start)}`,
       );
     }
     binders.push(...parseBinderGroup(formula.slice(start + 1, j - 1)));
@@ -83,6 +77,32 @@ export function parsePrefix(formula: string): ParsedPrefix {
   const body = formula.slice(i).trim();
   if (body.length === 0) throw new PabstError(`property body is empty`);
   return { binders, body };
+}
+
+/** Interval delimiters may be deliberately mismatched — (0, 1] is a legal
+ * half-open interval — so the group scanner consumes '∈/in ⟨( or [⟩ …
+ * ⟨) or ]⟩' as one atom whose brackets never take part in paren counting.
+ * Returns the index just past the interval's closing delimiter, or -1 when
+ * no interval starts at j. */
+function intervalAtomEnd(formula: string, j: number): number {
+  let k: number;
+  if (formula[j] === "∈") {
+    k = j + 1;
+  } else if (
+    formula.startsWith("in", j) &&
+    !/[A-Za-z0-9_]/.test(formula[j - 1] ?? " ") &&
+    !/[A-Za-z0-9_]/.test(formula[j + 2] ?? " ")
+  ) {
+    k = j + 2;
+  } else {
+    return -1;
+  }
+  while (k < formula.length && /\s/.test(formula[k]!)) k++;
+  if (formula[k] !== "(" && formula[k] !== "[") return -1;
+  for (k++; k < formula.length; k++) {
+    if (formula[k] === ")" || formula[k] === "]") return k + 1;
+  }
+  return -1;
 }
 
 function parseBinderGroup(group: string): Binder[] {

@@ -173,28 +173,104 @@ describe("parsePrefix — interval constraints", () => {
     );
   });
 
-  it("reports a missing close delimiter for a half-open '[lo, hi)' (until the scanner learns intervals)", () => {
+  it("still reports unbalanced groups when 'in (' is just body text", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int ∈ [1, 30)), x === x"),
-      /missing its closing/,
+      () => parsePrefix("forall (x: int, contains(x) && x in (whatever"),
+      /unbalanced parentheses/,
     );
   });
+});
 
-  it("hints about open intervals when '(lo, hi]' unbalances the group", () => {
-    expectPabstError(
-      () => parsePrefix("forall (x: number ∈ (0, 1]), x > 0"),
-      /open\/half-open intervals/,
-    );
+describe("parsePrefix — open and unbounded intervals", () => {
+  it("parses a half-open interval whose ']' would unbalance the group", () => {
+    const r = parsePrefix("forall (x: number ∈ (0, 1]), x > 0");
+    expect(r.binders).toEqual([
+      {
+        varName: "x",
+        domain: "number",
+        range: { min: "0", max: "1", minOpen: true },
+      },
+    ]);
+    expect(r.body).toBe("x > 0");
   });
 
-  it("does not hint about open intervals when 'in (' is just body text", () => {
-    let message = "";
-    try {
-      parsePrefix("forall (x: int, contains(x) && x in (whatever");
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).toMatch(/unbalanced parentheses/);
-    expect(message).not.toMatch(/open\/half-open/);
+  it("parses a half-open interval whose ')' would close the group early", () => {
+    const r = parsePrefix("forall (n: int ∈ [0, 10)), n < 10");
+    expect(r.binders).toEqual([
+      {
+        varName: "n",
+        domain: "int",
+        range: { min: "0", max: "10", maxOpen: true },
+      },
+    ]);
+    expect(r.body).toBe("n < 10");
+  });
+
+  it("parses an unbounded interval", () => {
+    const r = parsePrefix("forall (x: number ∈ (0, ∞)), x > 0");
+    expect(r.binders).toEqual([
+      {
+        varName: "x",
+        domain: "number",
+        range: { min: "0", minOpen: true, maxOpen: true },
+      },
+    ]);
+  });
+
+  it("parses the ASCII 'in' fallback with an open interval", () => {
+    const r = parsePrefix("forall (x: number in (0, 1]), x > 0");
+    expect(r.binders).toEqual([
+      {
+        varName: "x",
+        domain: "number",
+        range: { min: "0", max: "1", minOpen: true },
+      },
+    ]);
+  });
+
+  it("handles several open-interval groups and call commas in the body", () => {
+    const r = parsePrefix(
+      "forall (x: number ∈ (0, 1]) (n: int ∈ [0, 10)), f(x, n) === g(n, x)",
+    );
+    expect(r.binders).toEqual([
+      {
+        varName: "x",
+        domain: "number",
+        range: { min: "0", max: "1", minOpen: true },
+      },
+      {
+        varName: "n",
+        domain: "int",
+        range: { min: "0", max: "10", maxOpen: true },
+      },
+    ]);
+    expect(r.body).toBe("f(x, n) === g(n, x)");
+  });
+
+  it("applies an open interval to every name in a Lean-style group", () => {
+    const r = parsePrefix("forall (x y: number ∈ (0, 1)), x * y < 1");
+    expect(r.binders).toEqual([
+      {
+        varName: "x",
+        domain: "number",
+        range: { min: "0", max: "1", minOpen: true, maxOpen: true },
+      },
+      {
+        varName: "y",
+        domain: "number",
+        range: { min: "0", max: "1", minOpen: true, maxOpen: true },
+      },
+    ]);
+  });
+
+  it("does not treat the 'in' inside 'bigint' as a membership token", () => {
+    const r = parsePrefix("forall (b: bigint ∈ (0n, 100n]), b > 0n");
+    expect(r.binders).toEqual([
+      {
+        varName: "b",
+        domain: "bigint",
+        range: { min: "0", max: "100", minOpen: true },
+      },
+    ]);
   });
 });
