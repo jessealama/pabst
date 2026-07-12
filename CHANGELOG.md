@@ -21,6 +21,13 @@ Notable changes to pabst. The format follows
   error, and files outside the current directory (a monorepo `include` of
   `../shared`, say) are skipped — generated tests live in `./.pabst/`, so
   only the package pabst runs in can be tested. (#23)
+- Binder intervals may be open or half-open — `(0, 1]`, `[0, 30)` — and
+  endpoints may be unbounded: `∞`/`-∞` (ASCII: `Infinity`). So
+  `(x: number ∈ (0, ∞))` expresses "strictly positive number", excluding
+  `0`, `-0`, `NaN`, and `Infinity`. Open `int`/`nat`/`bigint` bounds
+  adjust the inclusive bound by ±1; an ∞ endpoint there must be open and
+  means fast-check's default bound. For `number`, a closed ∞ endpoint
+  (`[0, ∞]`) allows `Infinity` itself to be generated. (#29)
 
 ### Fixed
 

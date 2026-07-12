@@ -145,10 +145,16 @@ spelling of an equation is a plain `Object.is` call).
   the body. Lean-style grouping `(x y: int)` is supported. Existential `∃` /
   `exists` is intentionally rejected (PBT cannot soundly confirm existence).
 - **Domains:** `int`, `nat`, `number`, `boolean`, `string`, `bigint`.
-  A numeric domain (`int`, `nat`, `number`, `bigint`) may be constrained to a
-  closed interval: `forall (x: int ∈ [1, 30])` (ASCII fallback: `in`). Both
-  bounds are inclusive and required; open intervals like `[0, 30)` are
-  rejected. A bounded `number` never generates `NaN`.
+  A numeric domain (`int`, `nat`, `number`, `bigint`) may be constrained to
+  an interval: `forall (x: int ∈ [1, 30])` (ASCII fallback: `in`). Each
+  bound is independently inclusive (`[`/`]`) or exclusive (`(`/`)`), so
+  `(0, 1]`, `[0, 30)`, and `(0, 30)` all work — for `int`/`nat`/`bigint`
+  an exclusive bound is a ±1 adjustment. An endpoint may be unbounded:
+  `-∞`/`∞` (ASCII: `Infinity`), so `(x: number ∈ (0, ∞))` is a strictly
+  positive number (excluding `-0` — and `Infinity`, since the bound is
+  exclusive; `[0, ∞]` may generate `Infinity` itself). For `int`, `nat`,
+  and `bigint` an ∞ endpoint must be exclusive and falls back to
+  fast-check's default bound. A bounded `number` never generates `NaN`.
 - **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
   Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
   Negation `¬` is glyph-only.
