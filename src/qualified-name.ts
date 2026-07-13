@@ -14,10 +14,12 @@ export function qualifiedName(
 }
 
 /**
- * Matches exactly the strings qualifiedName() can produce: a bare
- * identifier, or two identifiers joined by `#` (instance) / `.` (static).
- * The issue wire schema embeds this pattern (src/issue-schema.ts), so it
- * must stay within JSON Schema's ECMA-regex subset.
+ * Matches the strings qualifiedName() produces: a bare identifier, or two
+ * identifiers joined by `#` (instance) / `.` (static). Segments are ASCII
+ * TypeScript identifiers; unicode identifiers (e.g. `précis`) are legal
+ * TypeScript but not matched — a known gap, kept so the pattern stays within
+ * JSON Schema's ECMA-regex subset (schemas/issue.schema.json embeds it; a
+ * sync test keeps the two spellings identical).
  */
 export const QUALIFIED_NAME_PATTERN =
-  /^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$/;
+  /^[$A-Za-z_][$A-Za-z0-9_]*([#.][$A-Za-z_][$A-Za-z0-9_]*)?$/;

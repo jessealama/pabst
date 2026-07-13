@@ -41,7 +41,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "generate:schema": "npm run build && node scripts/generate-issue-schema.mjs && prettier --write schemas/issue.schema.json",
     "format:check": "prettier --check .",
     "coverage": "vitest run --coverage",
     "mutation": "stryker run"
@@ -49,8 +48,7 @@
   "license": "MIT",
   "dependencies": {
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9",
-    "zod": "^4.4.3"
+    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "@fast-check/vitest": "^0.4.1",
