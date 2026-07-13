@@ -1,5 +1,6 @@
 import { PabstError } from "./errors.js";
-import type { Domain, Range } from "./ir.js";
+import type { Domain, Range, StringPattern } from "./ir.js";
+import { anchoredSource } from "./regex-guard.js";
 
 export const DOMAIN_TABLE: Record<Domain, string> = {
   int: "fc.integer()",
@@ -102,7 +103,23 @@ export function numberConstraints(range: Range): NumberConstraints {
   return c;
 }
 
-export function arbitraryFor(domain: Domain, range?: Range): string {
+export function arbitraryFor(
+  domain: Domain,
+  range?: Range,
+  pattern?: StringPattern,
+): string {
+  if (pattern) {
+    if (domain !== "string") {
+      // Unreachable via the parser (parseRegexGuard rejects these), kept
+      // as a backstop for direct callers.
+      throw new PabstError(
+        `domain '${domain}' does not support ∈ regex guards — only string does`,
+      );
+    }
+    // Safe to re-emit as a literal: the source came from a literal scan,
+    // so any '/' in it is escaped or inside a character class.
+    return `fc.stringMatching(/${anchoredSource(pattern.source)}/${pattern.flags})`;
+  }
   if (!range) return DOMAIN_TABLE[domain];
   switch (domain) {
     case "int":

@@ -159,3 +159,23 @@ describe("arbitraryFor — open and unbounded ranges", () => {
     );
   });
 });
+
+describe("arbitraryFor — regex guards", () => {
+  it("emits an anchored fc.stringMatching for string + pattern", () => {
+    expect(
+      arbitraryFor("string", undefined, { source: "[a-z]+", flags: "" }),
+    ).toBe("fc.stringMatching(/^(?:[a-z]+)$/)");
+  });
+
+  it("carries flags through to the emitted literal", () => {
+    expect(
+      arbitraryFor("string", undefined, { source: "\\p{Lu}+", flags: "u" }),
+    ).toBe("fc.stringMatching(/^(?:\\p{Lu}+)$/u)");
+  });
+
+  it("throws for a pattern on a non-string domain", () => {
+    expect(() =>
+      arbitraryFor("int", undefined, { source: "a", flags: "" }),
+    ).toThrow(/only string/);
+  });
+});
