@@ -74,9 +74,7 @@ function emitProp(
   seed: number,
   indent: string,
 ): string {
-  const arbs = s.binders
-    .map((b) => arbitraryFor(b.domain, b.range, b.pattern))
-    .join(", ");
+  const arbs = s.binders.map((b) => arbitraryFor(b)).join(", ");
   const vars = s.binders.map((b) => b.varName).join(", ");
   const varNames = s.binders.map((b) => JSON.stringify(b.varName)).join(", ");
   const name = JSON.stringify(s.name);
