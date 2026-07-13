@@ -13,6 +13,10 @@ import {
   RUNTIME_SPECIFIER,
   type Issue,
 } from "../src/contract.js";
+import {
+  QUALIFIED_NAME_PATTERN,
+  qualifiedName,
+} from "../src/qualified-name.js";
 import * as runtime from "../src/runtime.js";
 
 describe("contract pins", () => {
@@ -61,6 +65,26 @@ describe("contract pins", () => {
     expect(out.failed).toBe(true);
     expect((out.errorInstance as Error).message).toBe(
       FC_PROPERTY_FAILED_MESSAGE,
+    );
+  });
+
+  it("pins the qualified-name pattern", () => {
+    expect(QUALIFIED_NAME_PATTERN.source).toBe(
+      "^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$",
+    );
+    expect(QUALIFIED_NAME_PATTERN.flags).toBe("");
+  });
+
+  it("accepts everything qualifiedName produces", () => {
+    const identifier = fc.stringMatching(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    fc.assert(
+      fc.property(
+        identifier,
+        fc.option(identifier, { nil: undefined }),
+        fc.boolean(),
+        (fn, cls, isStatic) =>
+          QUALIFIED_NAME_PATTERN.test(qualifiedName(fn, cls, isStatic)),
+      ),
     );
   });
 });
