@@ -15,9 +15,9 @@
    ( ) [ ] { } or a template substitution.
    ========================================================================== *)
 
-property        ::= prefix "," formula
-                    (* the FIRST depth-0 comma after the binder groups
-                       separates prefix from body *)
+property        ::= prefix "{" formula "}"
+                    (* the "{" after the binder groups opens the body; its
+                       matching "}" must be the annotation's last token *)
 
 (* ---- Quantifier prefix --------------------------------------------------- *)
 
