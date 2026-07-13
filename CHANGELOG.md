@@ -14,7 +14,9 @@ Notable changes to pabst. The format follows
   call `Object.is(A, B)` (or `!Object.is(A, B)`) directly; a nested glyph
   is rejected with exactly that hint. Relatedly, a parenthesized equation
   feeding `??` or `?:` (e.g. `(a ≡ b) ? c : d`) is now a nested position:
-  use `Object.is` there too.
+  use `Object.is` there too. An equation also may not sit beside a
+  depth-0 comma or unparenthesized arrow function (e.g. `a, b ≡ x` or
+  `p ≡ x => f(x)`): parenthesize the intended operand.
 
 ### Added
 

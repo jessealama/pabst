@@ -156,6 +156,12 @@ describe("desugarEquations — rejections", () => {
     throws("a =≡ b", /fused with an adjacent operator/);
     throws("a ≢= b", /fused with an adjacent operator/);
   });
+  it("rejects an equation glyph fused with an adjacent !", () => {
+    throws("a !≡ b", /fused with an adjacent operator/);
+  });
+  it("accepts a spaced non-null assertion beside a glyph", () => {
+    expect(desugarEquations("a! ≡ b")).toBe("Object.is(a!, b)");
+  });
   it("rejects ≠ with a hint to ≢", () => {
     throws("a ≠ b", /write ≢/);
     throws("a ≠ b", /a ≠ b/);
@@ -203,6 +209,30 @@ describe("desugarEquations — rejections", () => {
     expect(desugarEquations("a ≡ (b ? c : d)")).toBe(
       "Object.is(a, (b ? c : d))",
     );
+  });
+  it("rejects an equation beside a depth-0 comma", () => {
+    throws("a, b ≡ x", /comma/);
+    throws("a ≡ b, c", /comma/);
+  });
+  it("rejects an equation beside an unparenthesized arrow function", () => {
+    throws("p ≡ x => f(x)", /arrow/);
+    throws("x => y ≡ b", /arrow/);
+  });
+  it("allows a parenthesized arrow and comma as equation material", () => {
+    expect(desugarEquations("f() ≡ (x => x)(0)")).toBe(
+      "Object.is(f(), (x => x)(0))",
+    );
+    expect(desugarEquations("g(a, b) ≡ x")).toBe("Object.is(g(a, b), x)");
+  });
+  it("allows && and || under a depth-0 ternary (the ternary is the root)", () => {
+    expect(desugarEquations("a && b ? c : d")).toBe("a && b ? c : d");
+    expect(desugarEquations("cond ? a : b && c")).toBe("cond ? a : b && c");
+    expect(desugarEquations("a || b ? c : d")).toBe("a || b ? c : d");
+  });
+  it("rejects && / || at the atom root, even parenthesized", () => {
+    throws("a && b", /use ∧/);
+    throws("a || b", /use ∨/);
+    throws("(a && b)", /use ∧/);
   });
   it("rejects a parenthesized equation feeding a ternary (nested position)", () => {
     throws("(a ≡ b) ? c : d", /top level.*Object\.is/s);

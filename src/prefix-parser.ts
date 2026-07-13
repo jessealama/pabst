@@ -8,7 +8,7 @@ import {
   scanRegexLiteral,
   TRUNCATION_HINT,
 } from "./regex-guard.js";
-import { scanTokens, type ScannedToken } from "./formula-lexer.js";
+import { scanTokens, sliceText, type ScannedToken } from "./formula-lexer.js";
 
 export interface ParsedPrefix {
   binders: Binder[];
@@ -62,11 +62,9 @@ function isMembership(t: ScannedToken): boolean {
 }
 
 /** Tokenize the annotation for prefix parsing. A regex literal that never
- * closes must not be one token — it would swallow the rest of the group
- * (a mistyped '(', or a pattern whose star-slash ended the enclosing
- * JSDoc comment early). Its leading '/' is emitted alone and scanning
- * restarts after it; the offsets of such slashes feed the truncation
- * hint. Terminated literals stay atomic, parens in the pattern and all. */
+ * closes would swallow the rest of the group as one token, so its leading
+ * '/' is emitted alone, scanning restarts after it, and the slash's offset
+ * feeds the truncation hint. */
 function prefixTokens(formula: string): {
   toks: ScannedToken[];
   unterminatedSlash: Set<number>;
@@ -136,13 +134,9 @@ function groupExtent(
   );
 }
 
-/** Index of the token closing a plausible interval starting at toks[at], or
- * -1 when none starts there: not opened by '[' or '(', no closing ']' or
- * ')' follows, or the delimited tokens cannot be a two-endpoint interval
- * (a second comma, or a ':', means the closing delimiter swallowed
- * neighboring binder text — typically a forgotten ']'). On -1 the group
- * scan proceeds as usual and whatever text follows the membership token
- * reaches parseRange for the precise complaint. */
+/** Index of the token closing a plausible two-endpoint interval starting at
+ * toks[at], or -1 when none starts there — the group scan then proceeds as
+ * usual and the guard text reaches parseRange for the precise complaint. */
 function intervalExtent(toks: ScannedToken[], at: number): number {
   const open = toks[at];
   if (!open || (open.text !== "[" && open.text !== "(")) return -1;
@@ -212,11 +206,6 @@ function parseBinderGroup(
     if (pattern) binder.pattern = pattern;
     return binder;
   });
-}
-
-function sliceText(formula: string, toks: ScannedToken[]): string {
-  if (toks.length === 0) return "";
-  return formula.slice(toks[0]!.start, toks[toks.length - 1]!.end);
 }
 
 /** Group adjacent tokens (no gap between them) into runs; each run's source

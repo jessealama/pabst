@@ -42,12 +42,11 @@ guard           ::= interval               (* numeric domains only:
 
 regex-literal   ::= ?a JavaScript regex literal: "/" pattern "/" flags?
                     (* flags: only s and u. Whole-string semantics: the
-                       pattern is auto-anchored ^(?:…)$ at lowering, and
-                       must fall inside fast-check's stringMatching
-                       subset (validated at parse time by probing
-                       fast-check itself — src/regex-guard.ts). Beware:
-                       a '*/' inside a pattern ends the enclosing JSDoc
-                       comment — write {0,} instead of a trailing *. *)
+                       pattern is auto-anchored ^(?:…)$, and must be one
+                       the string generator supports (checked at parse
+                       time). Beware: a '*/' inside a pattern ends the
+                       enclosing JSDoc comment — write {0,} instead of a
+                       trailing *. *)
 
 interval        ::= open-delim endpoint "," endpoint close-delim
 open-delim      ::= "[" | "("              (* "(" excludes the lower endpoint *)
@@ -58,10 +57,8 @@ endpoint        ::= NUMERIC-LITERAL | INFINITE
                     (* literal syntax is per-domain: integer literals for
                        int/nat, integer with optional n suffix for bigint,
                        decimal/scientific for number. Signs allowed.
-                       Semantic side conditions (emptiness, safe-integer
-                       clamping, nat flooring, fast-check double ordering)
-                       are enforced by validation, not the grammar:
-                       see src/range.ts and README "Grammar". *)
+                       Semantic side conditions (emptiness, ordering) are
+                       enforced by validation, not the grammar. *)
 INFINITE        ::= SIGN? ("∞" | "Infinity")
                     (* an ∞ endpoint must be exclusive for int/nat/bigint *)
 
@@ -69,14 +66,15 @@ INFINITE        ::= SIGN? ("∞" | "Infinity")
    Precedence is encoded in the production chain, loosest binding first:
    ↔  <  →  <  ∨  <  ∧  <  ¬                                              *)
 
-formula         ::= iff
-iff             ::= implication (IFF implication)?
+formula         ::= equivalence
+equivalence     ::= implication (IFF implication)?
                     (* non-associative: a ↔ b ↔ c is an error *)
 implication     ::= disjunction (IMPLIES disjunction)*
                     (* a → b → c: every segment but the last is an
-                       antecedent. At the FORMULA ROOT, antecedents lower
-                       to fc.pre(...) discards; a parenthesized → is
-                       ordinary material implication ¬P ∨ Q. *)
+                       antecedent. At the FORMULA ROOT, a failing
+                       antecedent discards the sample (a precondition);
+                       a parenthesized → is ordinary material
+                       implication ¬P ∨ Q. *)
 disjunction     ::= conjunction (OR conjunction)*       (* left-associative *)
 conjunction     ::= negation (AND negation)*            (* left-associative *)
 negation        ::= NOT negation | primary
@@ -114,6 +112,6 @@ island          ::= ?an opaque JavaScript/TypeScript expression?
    - Loose == / != are rejected (use ≡/≢ or ===/!==); assignments (= and
      compound forms) are rejected anywhere in an atom, except parameter
      default initializers; ≠ is rejected with a hint to write ≢.
-   - An equation side may not carry a depth-0 ?? or ?: or ===/!== —
-     parenthesize the intended grouping.
+   - An equation may not sit beside a depth-0 ??, ?:, ===/!==, comma,
+     or => — parenthesize the intended grouping.
    - Every free identifier must be exported from the annotated module. *)

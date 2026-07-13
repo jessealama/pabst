@@ -120,6 +120,15 @@ export function lexFormula(body: string): FToken[] {
   return mergeArrowFallbacks(mergeSlashFallbacks(raw));
 }
 
+/** The source text spanned by toks (empty when toks is empty). */
+export function sliceText(
+  source: string,
+  toks: readonly { start: number; end: number }[],
+): string {
+  if (toks.length === 0) return "";
+  return source.slice(toks[0]!.start, toks[toks.length - 1]!.end);
+}
+
 /** A `/` can begin a regex unless the previous token ends a value (then it's division). */
 export function regexCanFollow(prev: ts.SyntaxKind | null): boolean {
   if (prev === null) return true;

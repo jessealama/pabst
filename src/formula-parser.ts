@@ -1,5 +1,5 @@
 import type { Formula } from "./formula-ast.js";
-import { lexFormula, type FToken } from "./formula-lexer.js";
+import { lexFormula, sliceText, type FToken } from "./formula-lexer.js";
 import { PabstError } from "./errors.js";
 import { desugarEquations } from "./equations.js";
 
@@ -18,7 +18,7 @@ interface Cursor {
 
 const BINARY = new Set<FToken["kind"]>(["and", "or", "implies", "iff"]);
 
-/** formula ::= iff   (docs/grammar.ebnf) — must consume the whole range. */
+/** formula ::= equivalence   (docs/grammar.ebnf) — must consume the whole range. */
 function parseFormula(
   toks: FToken[],
   start: number,
@@ -26,7 +26,7 @@ function parseFormula(
   src: string,
 ): Formula {
   const c: Cursor = { toks, pos: start, end, src };
-  const f = parseIff(c);
+  const f = parseEquivalence(c);
   if (c.pos !== c.end) {
     throw new PabstError(
       `unbalanced parentheses in formula: unexpected '${c.toks[c.pos]!.text}' (in: ${src})`,
@@ -35,8 +35,8 @@ function parseFormula(
   return f;
 }
 
-/** iff ::= implication (IFF implication)?   — non-associative. */
-function parseIff(c: Cursor): Formula {
+/** equivalence ::= implication (IFF implication)?   — non-associative. */
+function parseEquivalence(c: Cursor): Formula {
   const left = parseImplication(c);
   if (peek(c)?.kind !== "iff") return left;
   c.pos++;
@@ -52,10 +52,10 @@ function parseIff(c: Cursor): Formula {
 /** implication ::= disjunction (IMPLIES disjunction)*
  * A chain a → b → c makes every segment but the last an antecedent. */
 function parseImplication(c: Cursor): Formula {
-  const segs = [parseOr(c)];
+  const segs = [parseDisjunction(c)];
   while (peek(c)?.kind === "implies") {
     c.pos++;
-    segs.push(parseOr(c));
+    segs.push(parseDisjunction(c));
   }
   if (segs.length === 1) return segs[0]!;
   return {
@@ -66,30 +66,30 @@ function parseImplication(c: Cursor): Formula {
 }
 
 /** disjunction ::= conjunction (OR conjunction)*   — left-associative. */
-function parseOr(c: Cursor): Formula {
-  let f = parseAnd(c);
+function parseDisjunction(c: Cursor): Formula {
+  let f = parseConjunction(c);
   while (peek(c)?.kind === "or") {
     c.pos++;
-    f = { kind: "or", left: f, right: parseAnd(c) };
+    f = { kind: "or", left: f, right: parseConjunction(c) };
   }
   return f;
 }
 
 /** conjunction ::= negation (AND negation)*   — left-associative. */
-function parseAnd(c: Cursor): Formula {
-  let f = parseUnary(c);
+function parseConjunction(c: Cursor): Formula {
+  let f = parseNegation(c);
   while (peek(c)?.kind === "and") {
     c.pos++;
-    f = { kind: "and", left: f, right: parseUnary(c) };
+    f = { kind: "and", left: f, right: parseNegation(c) };
   }
   return f;
 }
 
 /** negation ::= NOT negation | primary */
-function parseUnary(c: Cursor): Formula {
+function parseNegation(c: Cursor): Formula {
   if (peek(c)?.kind === "not") {
     c.pos++;
-    return { kind: "not", arg: parseUnary(c) };
+    return { kind: "not", arg: parseNegation(c) };
   }
   return parsePrimary(c);
 }
@@ -117,7 +117,7 @@ function parsePrimary(c: Cursor): Formula {
   if (whollyWrapped(span)) {
     return parseFormula(c.toks, start + 1, c.pos - 1, c.src);
   }
-  const text = c.src.slice(span[0]!.start, span[span.length - 1]!.end).trim();
+  const text = sliceText(c.src, span).trim();
   return { kind: "atom", text, js: desugarEquations(text) };
 }
 
