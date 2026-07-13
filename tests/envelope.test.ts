@@ -4,15 +4,13 @@ import {
   collectIssues,
   type VitestJson,
 } from "../src/envelope.js";
-import { ISSUE_SENTINEL, type Issue } from "../src/contract.js";
+import { encodeIssue, type Issue } from "../src/contract.js";
 import { META, FALSIFIED } from "./helpers/fixtures.js";
 
 function failed(issue: Issue): { status: string; failureMessages: string[] } {
   return {
     status: "failed",
-    failureMessages: [
-      `Error: ${ISSUE_SENTINEL}${JSON.stringify(issue)}\n    at x`,
-    ],
+    failureMessages: [`Error: ${encodeIssue(issue)}\n    at x`],
   };
 }
 
