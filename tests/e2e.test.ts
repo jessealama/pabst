@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { generate } from "../src/codegen.js";
 import { runTests } from "../src/run.js";
-import type { Envelope } from "../src/issue.js";
+import type { Envelope } from "../src/envelope.js";
 import { expectValidIssue } from "./helpers/issue-schema.js";
 import { META } from "./helpers/fixtures.js";
 

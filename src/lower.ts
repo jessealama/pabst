@@ -1,10 +1,11 @@
+import { BOOL_ALIAS } from "./contract.js";
 import type { Formula } from "./formula-ast.js";
 
 /** A pure boolean expression string for any sub-formula (implication = material). */
 export function lowerExpr(f: Formula): string {
   switch (f.kind) {
     case "atom":
-      return `__bool(${f.js}, ${JSON.stringify(f.text)})`;
+      return `${BOOL_ALIAS}(${f.js}, ${JSON.stringify(f.text)})`;
     case "not":
       return `!(${lowerExpr(f.arg)})`;
     case "and":

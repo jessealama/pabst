@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { runTests, RESULTS_FILE } from "../src/run.js";
-import { ISSUE_SENTINEL } from "../src/issue.js";
+import { encodeIssue } from "../src/contract.js";
 import { META, FALSIFIED } from "./helpers/fixtures.js";
 
 const repoRoot = process.cwd();
@@ -23,7 +23,7 @@ const brokenDir = path.join(workDir, "broken");
 const SAMPLE_SPEC = `import { it, expect } from "vitest";
 it("passes", () => { expect(1).toBe(1); });
 it("fails", () => {
-  throw new Error(${JSON.stringify(ISSUE_SENTINEL + JSON.stringify(FALSIFIED))});
+  throw new Error(${JSON.stringify(encodeIssue(FALSIFIED))});
 });
 `;
 

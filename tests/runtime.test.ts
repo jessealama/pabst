@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { report, bool } from "../src/runtime.js";
-import { parseIssue, type Issue } from "../src/issue.js";
+import { parseIssue, type Issue } from "../src/contract.js";
 
 function thrownIssue(fn: () => void): Issue {
   let msg = "";

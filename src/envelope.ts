@@ -1,4 +1,16 @@
-import { parseIssue, type Issue, type Envelope } from "./issue.js";
+import { parseIssue, type Issue } from "./contract.js";
+
+/** The full report of one pabst run: metadata, counts, and parsed issues. */
+export interface Envelope {
+  version: string;
+  startedAt: string;
+  cwd: string;
+  seed: number;
+  generated: number;
+  passed: number;
+  failed: number;
+  issues: Issue[];
+}
 
 /** The subset of vitest's JSON reporter output the envelope consumes. */
 export interface AssertionResult {

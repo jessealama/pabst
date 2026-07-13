@@ -54,7 +54,7 @@
     "functionName": {
       "type": "string",
       "description": "Bare function name, or Class#method (instance) / Class.method (static).",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$"
+      "pattern": "^[$A-Za-z_][$A-Za-z0-9_]*([#.][$A-Za-z_][$A-Za-z0-9_]*)?$"
     },
     "counterexample": {
       "type": "object",

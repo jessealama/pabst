@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { ISSUE_SENTINEL, parseIssue, type Issue } from "../src/issue.js";
+import {
+  encodeIssue,
+  ISSUE_SENTINEL,
+  parseIssue,
+  type Issue,
+} from "../src/contract.js";
 
-describe("parseIssue", () => {
+describe("issue wire codec", () => {
   const issue: Issue = {
     file: "foo/bar.mts",
     function: "jazz",
@@ -10,17 +15,21 @@ describe("parseIssue", () => {
     counterexample: { x: 1, y: "hello" },
   };
 
-  it("extracts a tagged issue from a bare sentinel message", () => {
-    expect(parseIssue(ISSUE_SENTINEL + JSON.stringify(issue))).toEqual(issue);
+  it("round-trips an issue through encodeIssue and parseIssue", () => {
+    expect(parseIssue(encodeIssue(issue))).toEqual(issue);
   });
 
   it("extracts the issue even when a stack trace follows on later lines", () => {
-    const raw = `Error: ${ISSUE_SENTINEL}${JSON.stringify(issue)}\n    at report (/x/runtime.js:1:1)\n    at y`;
+    const raw = `Error: ${encodeIssue(issue)}\n    at report (/x/runtime.js:1:1)\n    at y`;
     expect(parseIssue(raw)).toEqual(issue);
   });
 
   it("returns null when the sentinel is absent", () => {
     expect(parseIssue("Error: some unrelated failure")).toBeNull();
+  });
+
+  it("ignores JSON-shaped messages that lack the sentinel tag", () => {
+    expect(parseIssue(JSON.stringify(issue))).toBeNull();
   });
 
   it("returns null when the tagged payload is not valid JSON", () => {

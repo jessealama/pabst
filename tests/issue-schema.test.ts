@@ -38,6 +38,32 @@ describe("issue schema", () => {
     ).not.toThrow();
   });
 
+  it("accepts $-containing identifiers, which are legal TypeScript", () => {
+    expect(() =>
+      expectValidIssue({
+        file: "f.ts",
+        function: "Cart#$total",
+        property: "p",
+        kind: "falsified",
+        counterexample: { x: 0 },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a falsified issue with an empty counterexample", () => {
+    // A falsified property must carry at least one binding — an empty
+    // counterexample means the reporter lost the values it exists to report.
+    expect(() =>
+      expectValidIssue({
+        file: "f.ts",
+        function: "f",
+        property: "p",
+        kind: "falsified",
+        counterexample: {},
+      }),
+    ).toThrow();
+  });
+
   it("rejects a falsified issue that also carries an error", () => {
     expect(() =>
       expectValidIssue({
