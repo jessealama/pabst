@@ -1,9 +1,6 @@
 {
-  "name": "@jessealama/pabst",
-  "version": "0.11.0",
-  "publishConfig": {
-    "access": "public"
-  },
+  "name": "pabst-checker",
+  "version": "0.12.0",
   "description": "Property-based testing from @ensures annotations, powered by fast-check.",
   "repository": {
     "type": "git",
