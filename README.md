@@ -50,8 +50,13 @@ npm install --save-dev @jessealama/pabst
 
 The package is `@jessealama/pabst`; the command it installs is `pabst`.
 
-Requires Node 24+. Pabst bundles its own [fast-check](https://fast-check.dev/)
-and [vitest](https://vitest.dev/), so nothing else is needed.
+Requires Node 24+. Pabst bundles its own [vitest](https://vitest.dev/) and
+declares [fast-check](https://fast-check.dev/) as a peer dependency (npm
+installs it for you), so nothing else is needed. The peer relationship
+means pabst validates your annotations against the same fast-check copy
+the generated tests run with — if your project pins an incompatible
+fast-check, npm says so at install time instead of your tests failing
+mysteriously.
 
 ## Usage
 

@@ -16,9 +16,17 @@ Notable changes to pabst. The format follows
   substring semantics), the generation-irrelevant `g`/`y`/`d`, and the
   fast-check-unsupported `i`/`v` are compile-time errors, as are patterns
   outside fast-check's subset (lookarounds, backreferences, `\b`) — pabst
-  validates by probing its bundled fast-check at generation time. A `*/`
+  validates by probing fast-check itself at generation time. A `*/`
   inside a pattern ends the enclosing JSDoc comment early; the resulting
   parse error hints to write `{0,}` instead of a trailing `*`. (#30)
+
+### Changed
+
+- `fast-check` and `@fast-check/vitest` are now peer dependencies (npm
+  installs them automatically). Pabst validates regex guards and number
+  intervals by probing fast-check, so it must probe the same copy the
+  generated spec runs against; as regular dependencies, a project pinning
+  its own fast-check could pass validation yet fail at test time.
 
 ## [0.9.0]
 
