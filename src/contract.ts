@@ -28,9 +28,39 @@ export interface Envelope {
   issues: Issue[];
 }
 
+/**
+ * Module specifier generated tests import the runtime from. Must match
+ * package.json's `name` + `exports` map (pinned by a test).
+ */
+export const RUNTIME_SPECIFIER = "pabst-checker/runtime";
+
+/** Names the runtime module exports (pinned against src/runtime.ts by a test). */
+export const BOOL_EXPORT = "bool";
+export const REPORT_EXPORT = "report";
+
+/** Aliases those exports are bound to inside generated test files. */
+export const BOOL_ALIAS = "__bool";
+export const REPORT_ALIAS = "__pabstReport";
+
+/**
+ * The exact message fast-check puts on the error it synthesizes when a
+ * property returns false (as opposed to throwing). The runtime's
+ * falsified-vs-threw classification string-matches this because RunDetails
+ * carries no discriminator field — fast-check knows which case occurred and
+ * erases it into this prose. The principled fix is upstream: a `failureKind`
+ * field on RunDetails. Until then, a live pin test fails loudly if a
+ * fast-check upgrade rewords it.
+ */
+export const FC_PROPERTY_FAILED_MESSAGE = "Property failed by returning false";
+
 export const ISSUE_SENTINEL = "PABST_ISSUE:";
 
 const ISSUE_RE = new RegExp(`${ISSUE_SENTINEL}(\\{.*\\})`);
+
+/** Encode an issue for the wire: sentinel + single-line JSON, carried on an Error message. */
+export function encodeIssue(issue: Issue): string {
+  return ISSUE_SENTINEL + JSON.stringify(issue);
+}
 
 /**
  * Extract a pabst Issue from a vitest failure message, or null if the message
