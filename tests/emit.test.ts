@@ -61,8 +61,7 @@ describe("emit", () => {
       ".pabst/foo.pabst.test.ts",
       42,
     );
-    const occurrences =
-      multi.split('from "pabst-checker/runtime"').length - 1;
+    const occurrences = multi.split('from "pabst-checker/runtime"').length - 1;
     expect(occurrences).toBe(1);
   });
 });
