@@ -1,4 +1,4 @@
-import { parseIssue, type Issue, type Envelope } from "./issue.js";
+import { parseIssue, type Issue, type Envelope } from "./contract.js";
 
 /** The subset of vitest's JSON reporter output the envelope consumes. */
 export interface AssertionResult {

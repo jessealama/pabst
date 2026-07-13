@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ISSUE_SENTINEL, parseIssue, type Issue } from "../src/issue.js";
+import { ISSUE_SENTINEL, parseIssue, type Issue } from "../src/contract.js";
 
 describe("parseIssue", () => {
   const issue: Issue = {

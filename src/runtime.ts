@@ -1,5 +1,5 @@
 import { stringify } from "fast-check";
-import { ISSUE_SENTINEL, type Issue } from "./issue.js";
+import { ISSUE_SENTINEL, type Issue } from "./contract.js";
 
 /**
  * The subset of fast-check's RunDetails that the reporter consumes. The

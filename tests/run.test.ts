@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { runTests, RESULTS_FILE } from "../src/run.js";
-import { ISSUE_SENTINEL } from "../src/issue.js";
+import { ISSUE_SENTINEL } from "../src/contract.js";
 import { META, FALSIFIED } from "./helpers/fixtures.js";
 
 const repoRoot = process.cwd();
