@@ -295,3 +295,65 @@ describe("parsePrefix — open and unbounded intervals", () => {
     ]);
   });
 });
+
+describe("parsePrefix — regex guards", () => {
+  it("parses a regex guard on a string binder", () => {
+    const { binders, body } = parsePrefix(
+      "forall (s: string ∈ /^[a-z]+$/), f(s)",
+    );
+    expect(binders).toEqual([
+      {
+        varName: "s",
+        domain: "string",
+        pattern: { source: "^[a-z]+$", flags: "" },
+      },
+    ]);
+    expect(body).toBe("f(s)");
+  });
+
+  it("supports the ASCII 'in' fallback and flags", () => {
+    const { binders } = parsePrefix("forall (s: string in /\\p{Lu}+/u), f(s)");
+    expect(binders[0]!.pattern).toEqual({ source: "\\p{Lu}+", flags: "u" });
+  });
+
+  it("shares one pattern across grouped variables", () => {
+    const { binders } = parsePrefix("forall (s t: string ∈ /a|b/), f(s, t)");
+    expect(binders.map((b) => b.varName)).toEqual(["s", "t"]);
+    expect(binders[0]!.pattern).toEqual({ source: "a|b", flags: "" });
+    expect(binders[1]!.pattern).toEqual({ source: "a|b", flags: "" });
+  });
+
+  it("consumes parens and slashes inside the pattern atomically", () => {
+    const { binders } = parsePrefix("forall (s: string ∈ /[(]a[/]/), f(s)");
+    expect(binders[0]!.pattern).toEqual({ source: "[(]a[/]", flags: "" });
+  });
+
+  it("scans a pattern with balanced groups without miscounting", () => {
+    const { binders } = parsePrefix(
+      "forall (s: string ∈ /(a|b)+/) (n: int), f(s, n)",
+    );
+    expect(binders[0]!.pattern).toEqual({ source: "(a|b)+", flags: "" });
+    expect(binders[1]).toEqual({ varName: "n", domain: "int" });
+  });
+
+  it("rejects a regex guard on a non-string domain", () => {
+    expectPabstError(
+      () => parsePrefix("forall (n: int ∈ /[0-9]+/), f(n)"),
+      /only string/,
+    );
+  });
+
+  it("hints about JSDoc truncation when the pattern never closes", () => {
+    expectPabstError(
+      () => parsePrefix("forall (s: string ∈ /[a-z]"),
+      /ends the enclosing JSDoc comment/,
+    );
+  });
+
+  it("still rejects intervals on string binders", () => {
+    expectPabstError(
+      () => parsePrefix("forall (s: string ∈ [1, 2]), f(s)"),
+      /does not support ∈ interval/,
+    );
+  });
+});
