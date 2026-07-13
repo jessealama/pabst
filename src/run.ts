@@ -16,15 +16,15 @@ export type RunResult =
   | { kind: "broken-run"; status: number; messages: string[] };
 
 /**
- * Run vitest over `target` (the generated-test root, or a single generated
- * file) and assemble the run envelope from its JSON results. When vitest
- * produces no parseable results file (e.g. it died on startup before its
- * reporter ran), the run yielded nothing trustworthy to report: instead of an
- * envelope, return vitest's raw output and exit status so the caller can
- * surface the underlying error.
+ * Run vitest over `target` (the generated out-files of one invocation, or a
+ * single file or directory) and assemble the run envelope from its JSON
+ * results. When vitest produces no parseable results file (e.g. it died on
+ * startup before its reporter ran), the run yielded nothing trustworthy to
+ * report: instead of an envelope, return vitest's raw output and exit status
+ * so the caller can surface the underlying error.
  */
 export function runTests(
-  target: string,
+  target: string | string[],
   meta: RunMeta,
   resultsFile: string = RESULTS_FILE,
 ): RunResult {
@@ -40,9 +40,16 @@ export function runTests(
       stderr: `pabst: cannot clear stale results file ${resultsFile}: ${e instanceof Error ? e.message : String(e)}\n`,
     };
   }
+  const targets = Array.isArray(target) ? target : [target];
   const res = spawnSync(
     "npx",
-    ["vitest", "run", target, "--reporter=json", `--outputFile=${resultsFile}`],
+    [
+      "vitest",
+      "run",
+      ...targets,
+      "--reporter=json",
+      `--outputFile=${resultsFile}`,
+    ],
     { encoding: "utf8" },
   );
   let json;
