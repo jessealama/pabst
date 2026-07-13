@@ -5,101 +5,139 @@ import { desugarEquations } from "./equations.js";
 
 export function parseBody(body: string): Formula {
   const toks = lexFormula(body);
-  return parseTokens(toks, body);
+  return parseFormula(toks, 0, toks.length, body);
 }
 
-function parseTokens(toks: FToken[], src: string): Formula {
-  if (toks.length === 0)
-    throw new PabstError("empty operand: a connective is missing a side");
+/** A cursor over toks[pos, end) — one per (sub-)formula parse. */
+interface Cursor {
+  toks: FToken[];
+  pos: number;
+  end: number;
+  src: string;
+}
 
-  // ↔ (loosest, non-associative)
-  const iff = splitTop(toks, "iff");
-  if (iff.length > 2)
+const BINARY = new Set<FToken["kind"]>(["and", "or", "implies", "iff"]);
+
+/** formula ::= iff   (docs/grammar.ebnf) — must consume the whole range. */
+function parseFormula(
+  toks: FToken[],
+  start: number,
+  end: number,
+  src: string,
+): Formula {
+  const c: Cursor = { toks, pos: start, end, src };
+  const f = parseIff(c);
+  if (c.pos !== c.end) {
+    throw new PabstError(
+      `unbalanced parentheses in formula: unexpected '${c.toks[c.pos]!.text}' (in: ${src})`,
+    );
+  }
+  return f;
+}
+
+/** iff ::= implication (IFF implication)?   — non-associative. */
+function parseIff(c: Cursor): Formula {
+  const left = parseImplication(c);
+  if (peek(c)?.kind !== "iff") return left;
+  c.pos++;
+  const right = parseImplication(c);
+  if (peek(c)?.kind === "iff") {
     throw new PabstError(
       "chained ↔ is ambiguous: parenthesize, e.g. (a ↔ b) ↔ c",
     );
-  if (iff.length === 2) {
-    return {
-      kind: "iff",
-      left: parseTokens(iff[0]!, src),
-      right: parseTokens(iff[1]!, src),
-    };
   }
-
-  // → (chain: every segment but the last is an antecedent)
-  const imp = splitTop(toks, "implies");
-  if (imp.length >= 2) {
-    const antecedents = imp.slice(0, -1).map((seg) => parseTokens(seg, src));
-    const consequent = parseTokens(imp[imp.length - 1]!, src);
-    return { kind: "implication", antecedents, consequent };
-  }
-
-  // ∨ then ∧ (left-associative)
-  const or = splitTop(toks, "or");
-  if (or.length >= 2) return foldBinary("or", or, src);
-  const and = splitTop(toks, "and");
-  if (and.length >= 2) return foldBinary("and", and, src);
-
-  // ¬ (prefix)
-  if (toks[0]!.kind === "not") {
-    return { kind: "not", arg: parseTokens(toks.slice(1), src) };
-  }
-
-  // primary: a wholly-wrapped ( … ) is logical grouping; otherwise an atom
-  if (whollyWrapped(toks)) return parseTokens(toks.slice(1, -1), src);
-  return makeAtom(toks, src);
+  return { kind: "iff", left, right };
 }
 
-function foldBinary(
-  kind: "and" | "or",
-  segs: FToken[][],
-  src: string,
-): Formula {
-  return segs
-    .map((s) => parseTokens(s, src))
-    .reduce((left, right) => ({ kind, left, right }));
+/** implication ::= disjunction (IMPLIES disjunction)*
+ * A chain a → b → c makes every segment but the last an antecedent. */
+function parseImplication(c: Cursor): Formula {
+  const segs = [parseOr(c)];
+  while (peek(c)?.kind === "implies") {
+    c.pos++;
+    segs.push(parseOr(c));
+  }
+  if (segs.length === 1) return segs[0]!;
+  return {
+    kind: "implication",
+    antecedents: segs.slice(0, -1),
+    consequent: segs[segs.length - 1]!,
+  };
 }
 
-/** Split a token list at depth-0 tokens of `kind` (depth tracks open/close). */
-function splitTop(toks: FToken[], kind: FToken["kind"]): FToken[][] {
-  const segs: FToken[][] = [];
+/** disjunction ::= conjunction (OR conjunction)*   — left-associative. */
+function parseOr(c: Cursor): Formula {
+  let f = parseAnd(c);
+  while (peek(c)?.kind === "or") {
+    c.pos++;
+    f = { kind: "or", left: f, right: parseAnd(c) };
+  }
+  return f;
+}
+
+/** conjunction ::= negation (AND negation)*   — left-associative. */
+function parseAnd(c: Cursor): Formula {
+  let f = parseUnary(c);
+  while (peek(c)?.kind === "and") {
+    c.pos++;
+    f = { kind: "and", left: f, right: parseUnary(c) };
+  }
+  return f;
+}
+
+/** negation ::= NOT negation | primary */
+function parseUnary(c: Cursor): Formula {
+  if (peek(c)?.kind === "not") {
+    c.pos++;
+    return { kind: "not", arg: parseUnary(c) };
+  }
+  return parsePrimary(c);
+}
+
+/** primary ::= "(" formula ")" | atom
+ * The operand extends to the next depth-0 binary connective (or an
+ * unmatched close, or the end). A wholly-wrapped ( … ) is logical
+ * grouping; any other parenthesis belongs to the JavaScript island. */
+function parsePrimary(c: Cursor): Formula {
+  const start = c.pos;
   let depth = 0;
-  let cur: FToken[] = [];
-  for (const t of toks) {
+  while (c.pos < c.end) {
+    const t = c.toks[c.pos]!;
     if (t.kind === "open") depth++;
-    else if (t.kind === "close") depth--;
-    if (depth === 0 && t.kind === kind) {
-      segs.push(cur);
-      cur = [];
-      continue;
-    }
-    cur.push(t);
+    else if (t.kind === "close") {
+      if (depth === 0) break;
+      depth--;
+    } else if (depth === 0 && BINARY.has(t.kind)) break;
+    c.pos++;
   }
-  segs.push(cur);
-  return segs;
+  const span = c.toks.slice(start, c.pos);
+  if (span.length === 0) {
+    throw new PabstError("empty operand: a connective is missing a side");
+  }
+  if (whollyWrapped(span)) {
+    return parseFormula(c.toks, start + 1, c.pos - 1, c.src);
+  }
+  const text = c.src.slice(span[0]!.start, span[span.length - 1]!.end).trim();
+  return { kind: "atom", text, js: desugarEquations(text) };
 }
 
-/** True when toks[0] is "(" whose match is the final token. */
-function whollyWrapped(toks: FToken[]): boolean {
-  if (toks.length < 2 || toks[0]!.kind !== "open" || toks[0]!.text !== "(")
+function peek(c: Cursor): FToken | undefined {
+  return c.pos < c.end ? c.toks[c.pos] : undefined;
+}
+
+/** True when span[0] is "(" whose match is the final token. */
+function whollyWrapped(span: FToken[]): boolean {
+  if (span.length < 2 || span[0]!.kind !== "open" || span[0]!.text !== "(") {
     return false;
+  }
   let depth = 0;
-  for (let i = 0; i < toks.length; i++) {
-    const t = toks[i]!;
+  for (let i = 0; i < span.length; i++) {
+    const t = span[i]!;
     if (t.kind === "open") depth++;
     else if (t.kind === "close") {
       depth--;
-      if (depth === 0) return i === toks.length - 1;
+      if (depth === 0) return i === span.length - 1;
     }
   }
   return false;
-}
-
-function makeAtom(toks: FToken[], src: string): Formula {
-  const text = src.slice(toks[0]!.start, toks[toks.length - 1]!.end).trim();
-  if (text.length === 0)
-    throw new PabstError("empty operand: a connective is missing a side");
-  // desugarEquations also enforces the leaf rule (no top-level &&/||/!)
-  // on the one post-substitution parse of the atom.
-  return { kind: "atom", text, js: desugarEquations(text) };
 }
