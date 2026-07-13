@@ -1,3 +1,6 @@
+import fc from "fast-check";
+import type { DoubleConstraints } from "fast-check";
+import { bigintBounds, intBounds, numberConstraints } from "./domains.js";
 import { PabstError } from "./errors.js";
 import type { Domain, Range } from "./ir.js";
 
@@ -6,10 +9,45 @@ const BIGINT_LITERAL = /^[+-]?\d+n?$/;
 const NUMBER_LITERAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
 const INFINITE_LITERAL = /^([+-]?)(?:∞|Infinity)$/;
 
-const MAX_SAFE = 9007199254740991n;
-
 export function isNumericDomain(d: Domain): boolean {
   return d === "int" || d === "nat" || d === "number" || d === "bigint";
+}
+
+/** Interval delimiters may be deliberately mismatched — (0, 1] is legal —
+ * so the FIRST of ']' or ')' always closes an interval. This regex is the
+ * single definition of that rule; parseRange and scanIntervalExtent both
+ * scan with it. */
+const CLOSE_DELIM = /[\])]/;
+
+/** The index just past the membership token (∈, or the word 'in') starting
+ * at `i`, or -1 if none starts there. The single definition of the
+ * membership spelling, shared by the binder-group scanner and splitter. */
+export function membershipEnd(text: string, i: number): number {
+  if (text[i] === "∈") return i + 1;
+  if (
+    text.startsWith("in", i) &&
+    !/[A-Za-z0-9_]/.test(text[i - 1] ?? " ") &&
+    !/[A-Za-z0-9_]/.test(text[i + 2] ?? " ")
+  ) {
+    return i + 2;
+  }
+  return -1;
+}
+
+/** Where an interval starting at `at` ends: the index just past its
+ * closing delimiter, or -1 when no interval can start at `at` — the
+ * character there is not '[' or '(', no closing delimiter follows, or the
+ * delimited text cannot be a two-endpoint interval (a second comma, or a
+ * ':', means the delimiter swallowed neighboring binder text: typically a
+ * forgotten ']'). On -1 the caller's fallback path reaches parseRange,
+ * whose scan of the same text yields the precise complaint. */
+export function scanIntervalExtent(text: string, at: number): number {
+  if (text[at] !== "[" && text[at] !== "(") return -1;
+  const close = text.slice(at + 1).search(CLOSE_DELIM);
+  if (close === -1) return -1;
+  const interior = text.slice(at + 1, at + 1 + close);
+  if (interior.includes(":") || interior.split(",").length !== 2) return -1;
+  return at + close + 2;
 }
 
 /** Parse and validate an interval constraint like "[1, 30]" or "(0, 1]".
@@ -27,7 +65,7 @@ export function parseRange(text: string, domain: Domain): Range {
       `expected interval '[lo, hi]' or '(lo, hi]' after ∈, got: ${text || "(nothing)"}`,
     );
   }
-  const close = text.search(/[\])]/);
+  const close = text.search(CLOSE_DELIM);
   if (close === -1) {
     throw new PabstError(
       `interval is missing its closing ']' or ')' (in: ${text})`,
@@ -47,16 +85,16 @@ export function parseRange(text: string, domain: Domain): Range {
   }
   const min = parseBound(parts[0]!.trim(), "lower", minOpen, domain);
   const max = parseBound(parts[1]!.trim(), "upper", maxOpen, domain);
-  if (domain === "number") {
-    validateNumberInterval(min, max, minOpen, maxOpen, text);
-  } else {
-    validateIntegerInterval(min, max, minOpen, maxOpen, domain, text);
-  }
   const range: Range = {};
   if (min !== undefined) range.min = min;
   if (max !== undefined) range.max = max;
   if (minOpen) range.minOpen = true;
   if (maxOpen) range.maxOpen = true;
+  if (domain === "number") {
+    validateNumberInterval(range, text);
+  } else {
+    validateIntegerInterval(domain, range, text);
+  }
   return range;
 }
 
@@ -90,68 +128,58 @@ function parseBound(
   return undefined;
 }
 
-/** An open integer bound excludes exactly one value, so validity is judged
- * on the ±1-adjusted bounds — the same adjustment lowering applies, since
- * fc.integer/fc.bigInt have no exclusion options. */
-function validateIntegerInterval(
-  min: string | undefined,
-  max: string | undefined,
-  minOpen: boolean,
-  maxOpen: boolean,
-  domain: Domain,
-  text: string,
-): void {
-  const eMin =
-    min === undefined ? undefined : BigInt(min) + (minOpen ? 1n : 0n);
-  const eMax =
-    max === undefined ? undefined : BigInt(max) - (maxOpen ? 1n : 0n);
-  if (domain === "nat" && eMin !== undefined && eMin < 0n) {
+/** Validity is judged on the exact bounds lowering will emit (intBounds /
+ * bigintBounds fold open endpoints into ±1, floor nat at 0, and intersect
+ * int/nat with the safe integer range), so validation and generation can
+ * never disagree. A nat interval reaching below 0 clamps — `(-2, 5]` and
+ * `(-∞, 5]` denote the same naturals — and an int/nat endpoint beyond the
+ * safe range clamps with a warning; either is an error only when nothing
+ * satisfiable remains. */
+function validateIntegerInterval(domain: Domain, range: Range, text: string) {
+  if (domain === "bigint") {
+    const { lo, hi } = bigintBounds(range);
+    if (lo !== undefined && hi !== undefined && lo > hi) {
+      throw new PabstError(`empty interval: no bigint satisfies ${text}`);
+    }
+    return;
+  }
+  const { lo, hi, clamped } = intBounds(domain as "int" | "nat", range);
+  if (lo > hi) {
     throw new PabstError(
-      `nat interval cannot include negative values (in: ${text})`,
+      `empty interval: no ${domain}${clamped ? " within the safe integer range (±9007199254740991)" : ""} satisfies ${text}`,
     );
   }
-  const lo = domain === "nat" && eMin === undefined ? 0n : eMin;
-  if (lo !== undefined && eMax !== undefined && lo > eMax) {
-    throw new PabstError(`empty interval: no ${domain} satisfies ${text}`);
-  }
-  if (domain !== "bigint") {
-    for (const e of [eMin, eMax]) {
-      if (e !== undefined && (e > MAX_SAFE || e < -MAX_SAFE)) {
-        throw new PabstError(
-          `interval endpoint, adjusted ±1 for its open bound (${e}), ` +
-            `is outside the safe integer range (in: ${text})`,
-        );
-      }
-    }
+  if (clamped) {
+    console.error(
+      `warning: interval ${text} extends beyond the safe integer range; ` +
+        `${domain} generation is clamped to [${lo}, ${hi}]`,
+    );
   }
 }
 
-function validateNumberInterval(
-  min: string | undefined,
-  max: string | undefined,
-  minOpen: boolean,
-  maxOpen: boolean,
-  text: string,
-): void {
-  if (min === undefined || max === undefined) return;
-  const lo = Number(min);
-  const hi = Number(max);
-  if (lo > hi) {
-    throw new PabstError(`empty interval: ${min} > ${max} (in: ${text})`);
-  }
-  if (lo !== hi) return;
-  if (minOpen || maxOpen) {
-    // minExcluded/maxExcluded exclude both zeros, matching numeric
-    // equality, so (-0, 0] and [-0, 0) are as empty as (1, 1].
+/** A number interval denotes a set of fc-generatable doubles, so emptiness
+ * is fast-check's call, not ours: constructing the exact fc.double
+ * constraints lowering will emit lets fc apply its own ordering, in which
+ * every double is distinct — -0 sits below 0 (so [0, -0] is empty but
+ * (-0, 0] is the singleton {0}) and an excluded bound removes exactly one
+ * double, by adjacency rather than numeric equality (so [-1, 0) can
+ * generate -0, and (0, 5e-324) is empty). */
+function validateNumberInterval(range: Range, text: string): void {
+  const c = numberConstraints(range);
+  const opts: DoubleConstraints = {
+    noNaN: true,
+    minExcluded: c.minExcluded,
+    maxExcluded: c.maxExcluded,
+  };
+  if (c.min) opts.min = c.min.val;
+  if (c.max) opts.max = c.max.val;
+  try {
+    fc.double(opts);
+  } catch {
     throw new PabstError(
-      `empty interval: ${text} contains no values (equal endpoints with an excluded bound)`,
-    );
-  }
-  // fast-check orders -0 below +0, so [0, -0] is empty for fc.double.
-  if (lo === 0 && Object.is(hi, -0) && !Object.is(lo, -0)) {
-    throw new PabstError(
-      `empty interval: ${min} > ${max} (in: ${text})` +
-        ` — fast-check orders -0 below 0, so this interval contains no values`,
+      `empty interval: no number satisfies ${text} (fast-check treats every ` +
+        `double as distinct — it orders -0 below 0, and an excluded bound ` +
+        `removes exactly one double)`,
     );
   }
 }
@@ -163,10 +191,6 @@ function parseEndpoint(lit: string, domain: Domain): string {
       if (!INT_LITERAL.test(lit))
         throw new PabstError(
           `interval endpoint '${lit}' is not an integer literal (domain ${domain})`,
-        );
-      if (!Number.isSafeInteger(Number(lit)))
-        throw new PabstError(
-          `interval endpoint '${lit}' is outside the safe integer range`,
         );
       return normalizeLiteral(lit);
     }

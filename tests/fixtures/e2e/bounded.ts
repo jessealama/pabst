@@ -24,8 +24,9 @@ export function bigintInRange(b: bigint): boolean {
   return b >= 0n && b <= 100n;
 }
 
-/** Strictly positive and finite: (0, ∞) must exclude 0, -0 (fast-check's
- * minExcluded rules out both zeros), NaN, and Infinity.
+/** Strictly positive and finite: (0, ∞) must exclude 0, -0 (fast-check
+ * orders -0 below 0, so excluding the lower bound 0 removes both zeros),
+ * NaN, and Infinity.
  *
  * @ensures{strictlyPositive} forall (x: number ∈ (0, ∞)), numberStrictlyPositive(x)
  */
@@ -49,10 +50,41 @@ export function bigintStrictlyPositive(b: bigint): boolean {
   return b > 0n && b <= 100n;
 }
 
-/** (0, ∞) over nat lowers to fc.integer({ min: 1 }): never 0, never negative.
+/** (0, ∞) over nat lowers to fc.integer({ min: 1, max: 2^53-1 }): never 0,
+ * never negative.
  *
  * @ensures{positiveNat} forall (k: nat ∈ (0, ∞)), natStrictlyPositive(k)
  */
 export function natStrictlyPositive(k: number): boolean {
   return Number.isInteger(k) && k >= 1;
+}
+
+/** A one-sided interval far beyond fc.integer's 32-bit implicit defaults:
+ * the unbounded side must be emitted explicitly (clamped to the safe
+ * integer range), or fc.integer would reject min > its default max the
+ * moment the generated test runs.
+ *
+ * @ensures{farOutOneSided} forall (n: int ∈ [5000000000, ∞)), intBeyondInt32(n)
+ */
+export function intBeyondInt32(n: number): boolean {
+  return Number.isSafeInteger(n) && n >= 5000000000;
+}
+
+/** [-1, 0) excludes its upper bound by double adjacency, so the largest
+ * generatable value is -0 (which == 0): the body must accept -0 while
+ * everything else stays strictly negative.
+ *
+ * @ensures{halfOpenAtZero} forall (x: number ∈ [-1, 0)), numberBelowZero(x)
+ */
+export function numberBelowZero(x: number): boolean {
+  return x >= -1 && (x < 0 || Object.is(x, -0));
+}
+
+/** A finite negative nat lower bound clamps to 0, exactly like (-∞: the
+ * open bound (-2 adjusts to -1, which floors at 0.
+ *
+ * @ensures{clampedNat} forall (k: nat ∈ (-2, 5]), natInClamped(k)
+ */
+export function natInClamped(k: number): boolean {
+  return Number.isInteger(k) && k >= 0 && k <= 5;
 }

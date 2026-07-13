@@ -179,6 +179,27 @@ describe("parsePrefix — interval constraints", () => {
       /unbalanced parentheses/,
     );
   });
+
+  it("reports a forgotten ']' before the next binder as a missing delimiter, not unbalanced parens", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int ∈ [1, 2, y: int), x > 0"),
+      /missing its closing/,
+    );
+  });
+
+  it("reports a forgotten ']' before the body as a missing delimiter", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int ∈ [1, 2, x > 0), x !== 3"),
+      /missing its closing/,
+    );
+  });
+
+  it("reports three endpoints in a well-delimited interval as such", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int ∈ [1, 2, 3]), x > 0"),
+      /exactly two endpoints/,
+    );
+  });
 });
 
 describe("parsePrefix — open and unbounded intervals", () => {

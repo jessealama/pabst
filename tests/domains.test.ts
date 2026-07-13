@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { isDomain, arbitraryFor, DOMAIN_TABLE } from "../src/domains.js";
 
 describe("domains", () => {
@@ -84,16 +85,27 @@ describe("arbitraryFor — open and unbounded ranges", () => {
     );
   });
 
-  it("omits unbounded int sides, falling back to fc defaults", () => {
+  it("clamps unbounded int sides to the safe integer range (fc.integer's implicit defaults are 32-bit and collide with far-out explicit bounds)", () => {
     expect(arbitraryFor("int", { max: "5", minOpen: true })).toBe(
-      "fc.integer({ max: 5 })",
+      "fc.integer({ min: -9007199254740991, max: 5 })",
     );
     expect(
       arbitraryFor("int", { min: "0", minOpen: true, maxOpen: true }),
-    ).toBe("fc.integer({ min: 1 })");
+    ).toBe("fc.integer({ min: 1, max: 9007199254740991 })");
     expect(arbitraryFor("int", { minOpen: true, maxOpen: true })).toBe(
-      "fc.integer()",
+      "fc.integer({ min: -9007199254740991, max: 9007199254740991 })",
     );
+  });
+
+  it("emits one-sided intervals beyond fc.integer's 32-bit defaults that still construct", () => {
+    const code = arbitraryFor("int", { min: "5000000000", maxOpen: true });
+    expect(code).toBe("fc.integer({ min: 5000000000, max: 9007199254740991 })");
+    expect(() => new Function("fc", `return ${code}`)(fc)).not.toThrow();
+    const low = arbitraryFor("int", { max: "-5000000000", minOpen: true });
+    expect(low).toBe(
+      "fc.integer({ min: -9007199254740991, max: -5000000000 })",
+    );
+    expect(() => new Function("fc", `return ${low}`)(fc)).not.toThrow();
   });
 
   it("clamps an unbounded or adjusted-negative nat minimum to 0", () => {
@@ -105,7 +117,7 @@ describe("arbitraryFor — open and unbounded ranges", () => {
     );
     expect(
       arbitraryFor("nat", { min: "0", minOpen: true, maxOpen: true }),
-    ).toBe("fc.integer({ min: 1 })");
+    ).toBe("fc.integer({ min: 1, max: 9007199254740991 })");
   });
 
   it("lowers open number bounds to minExcluded/maxExcluded", () => {

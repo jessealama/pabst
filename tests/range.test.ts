@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { parseRange, isNumericDomain } from "../src/range.js";
 import { expectPabstError } from "./helpers/errors.js";
 
@@ -82,8 +82,17 @@ describe("parseRange — rejected", () => {
     expectPabstError(() => parseRange("[0, -0]", "number"), /-0 below 0/);
   });
 
-  it("rejects negative nat bounds", () => {
-    expectPabstError(() => parseRange("[-1, 5]", "nat"), /nat interval/);
+  it("accepts negative nat lower bounds, which clamp to 0 like (-∞ does", () => {
+    expect(parseRange("[-1, 5]", "nat")).toEqual({ min: "-1", max: "5" });
+    expect(parseRange("(-5, 3]", "nat")).toEqual({
+      min: "-5",
+      max: "3",
+      minOpen: true,
+    });
+  });
+
+  it("rejects nat intervals lying entirely below 0", () => {
+    expectPabstError(() => parseRange("[-5, -2]", "nat"), /empty interval/);
   });
 
   it("rejects non-integer endpoints for int", () => {
@@ -93,10 +102,26 @@ describe("parseRange — rejected", () => {
     );
   });
 
-  it("rejects unsafe integer endpoints for int", () => {
+  it("clamps unsafe integer endpoints to the safe range with a warning", () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(console, "error")
+      .mockImplementation((m: string) => void warnings.push(m));
+    try {
+      expect(parseRange("[0, 99999999999999999999]", "int")).toEqual({
+        min: "0",
+        max: "99999999999999999999",
+      });
+      expect(warnings.join("\n")).toMatch(/warning:.*safe integer/);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("rejects intervals lying entirely outside the safe integer range", () => {
     expectPabstError(
-      () => parseRange("[0, 99999999999999999999]", "int"),
-      /safe integer/,
+      () => parseRange("[9007199254740992, 99999999999999999999]", "int"),
+      /empty interval.*safe integer/s,
     );
   });
 
@@ -203,13 +228,27 @@ describe("parseRange — open-interval rejections", () => {
     expectPabstError(() => parseRange("(1, 1)", "number"), /empty interval/);
     expectPabstError(() => parseRange("[1, 1)", "number"), /empty interval/);
     expectPabstError(() => parseRange("(1, 1]", "number"), /empty interval/);
-    // fc's minExcluded/maxExcluded exclude both zeros, so these are empty too.
-    expectPabstError(() => parseRange("(-0, 0]", "number"), /empty interval/);
-    expectPabstError(() => parseRange("[-0, 0)", "number"), /empty interval/);
   });
 
-  it("rejects nat intervals whose adjusted lower bound is still negative", () => {
-    expectPabstError(() => parseRange("(-5, 3]", "nat"), /nat interval/);
+  it("treats -0 and 0 as distinct doubles, following fast-check: (-0, 0] and [-0, 0) are singletons", () => {
+    expect(parseRange("(-0, 0]", "number")).toEqual({
+      min: "-0",
+      max: "0",
+      minOpen: true,
+    });
+    expect(parseRange("[-0, 0)", "number")).toEqual({
+      min: "-0",
+      max: "0",
+      maxOpen: true,
+    });
+    expectPabstError(() => parseRange("(-0, 0)", "number"), /empty interval/);
+  });
+
+  it("rejects open intervals between adjacent doubles: excluding both endpoints leaves nothing", () => {
+    expectPabstError(
+      () => parseRange("(0, 5e-324)", "number"),
+      /empty interval/,
+    );
   });
 
   it("rejects a half-open interval with trailing text", () => {

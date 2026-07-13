@@ -1,7 +1,7 @@
 import { isDomain } from "./domains.js";
 import { PabstError } from "./errors.js";
 import type { Binder } from "./ir.js";
-import { parseRange } from "./range.js";
+import { membershipEnd, parseRange, scanIntervalExtent } from "./range.js";
 
 export interface ParsedPrefix {
   binders: Binder[];
@@ -9,8 +9,6 @@ export interface ParsedPrefix {
 }
 
 const FORALL = /^\s*(?:forall|∀)\s*/;
-
-const MEMBERSHIP = /∈|\bin\b/;
 
 export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
@@ -83,26 +81,15 @@ export function parsePrefix(formula: string): ParsedPrefix {
  * half-open interval — so the group scanner consumes '∈/in ⟨( or [⟩ …
  * ⟨) or ]⟩' as one atom whose brackets never take part in paren counting.
  * Returns the index just past the interval's closing delimiter, or -1 when
- * no interval starts at j. */
+ * no interval starts at j — then the characters take part in paren
+ * counting as usual, and whatever text ends up after the membership token
+ * reaches parseRange for the precise complaint. */
 function intervalAtomEnd(formula: string, j: number): number {
-  let k: number;
-  if (formula[j] === "∈") {
-    k = j + 1;
-  } else if (
-    formula.startsWith("in", j) &&
-    !/[A-Za-z0-9_]/.test(formula[j - 1] ?? " ") &&
-    !/[A-Za-z0-9_]/.test(formula[j + 2] ?? " ")
-  ) {
-    k = j + 2;
-  } else {
-    return -1;
-  }
-  while (k < formula.length && /\s/.test(formula[k]!)) k++;
-  if (formula[k] !== "(" && formula[k] !== "[") return -1;
-  for (k++; k < formula.length; k++) {
-    if (formula[k] === ")" || formula[k] === "]") return k + 1;
-  }
-  return -1;
+  const k = membershipEnd(formula, j);
+  if (k === -1) return -1;
+  let d = k;
+  while (d < formula.length && /\s/.test(formula[d]!)) d++;
+  return scanIntervalExtent(formula, d);
 }
 
 function parseBinderGroup(group: string): Binder[] {
@@ -115,10 +102,13 @@ function parseBinderGroup(group: string): Binder[] {
   const domainPart = group.slice(colon + 1).trim();
   let domainName = domainPart;
   let rangeText: string | undefined;
-  const mem = MEMBERSHIP.exec(domainPart);
-  if (mem) {
-    domainName = domainPart.slice(0, mem.index).trim();
-    rangeText = domainPart.slice(mem.index + mem[0].length).trim();
+  for (let j = 0; j < domainPart.length; j++) {
+    const end = membershipEnd(domainPart, j);
+    if (end !== -1) {
+      domainName = domainPart.slice(0, j).trim();
+      rangeText = domainPart.slice(end).trim();
+      break;
+    }
   }
   if (!isDomain(domainName)) {
     throw new PabstError(

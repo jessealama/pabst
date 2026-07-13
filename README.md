@@ -153,8 +153,15 @@ spelling of an equation is a plain `Object.is` call).
   `-∞`/`∞` (ASCII: `Infinity`), so `(x: number ∈ (0, ∞))` is a strictly
   positive number (excluding `-0` — and `Infinity`, since the bound is
   exclusive; `[0, ∞]` may generate `Infinity` itself). For `int`, `nat`,
-  and `bigint` an ∞ endpoint must be exclusive and falls back to
-  fast-check's default bound. A bounded `number` never generates `NaN`.
+  and `bigint` an ∞ endpoint must be exclusive; for `int`/`nat` it means
+  the safe integer limit (±2^53 − 1), and a finite endpoint beyond that
+  limit clamps to it with a warning. A `nat` interval reaching below 0
+  clamps to 0 (`(-2, 5]` and `(-∞, 5]` denote the same naturals).
+  `number` intervals follow fast-check's double ordering, in which every
+  double is distinct: `-0` sits below `0`, and an exclusive bound removes
+  exactly one adjacent double — so `[-1, 0)` can generate `-0` (which
+  `== 0`), and `(-0, 0]` is the singleton `{0}`. A bounded `number` never
+  generates `NaN`.
 - **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
   Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
   Negation `¬` is glyph-only.
