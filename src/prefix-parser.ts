@@ -8,10 +8,6 @@ import {
   TRUNCATION_HINT,
 } from "./regex-guard.js";
 
-// An unterminated regex guard in domain position is the telltale of a
-// pattern whose star-slash ended the enclosing JSDoc comment early.
-const REGEX_GUARD_ATTEMPT = /:\s*\w+\s*(?:∈|\bin\b)\s*\//;
-
 export interface ParsedPrefix {
   binders: Binder[];
   body: string;
@@ -42,9 +38,12 @@ export function parsePrefix(formula: string): ParsedPrefix {
     const start = i;
     let depth = 0;
     let j = i;
+    let sawUnterminatedRegex = false;
     while (j < formula.length) {
       const atomEnd = guardAtomEnd(formula, j);
-      if (atomEnd !== -1) {
+      if (atomEnd === "unterminated-regex") {
+        sawUnterminatedRegex = true;
+      } else if (atomEnd !== -1) {
         j = atomEnd;
         continue;
       }
@@ -61,7 +60,7 @@ export function parsePrefix(formula: string): ParsedPrefix {
     }
     if (depth !== 0) {
       const rest = formula.slice(start);
-      const regexGuard = REGEX_GUARD_ATTEMPT.test(rest)
+      const regexGuard = sawUnterminatedRegex
         ? ` (if this is a regex guard: ${TRUNCATION_HINT})`
         : "";
       throw new PabstError(
@@ -97,14 +96,23 @@ export function parsePrefix(formula: string): ParsedPrefix {
  * index just past the guard, or -1 when no guard starts at j — then the
  * characters take part in paren counting as usual, and whatever text ends
  * up after the membership token reaches parseBinderGroup for the precise
- * complaint. An unterminated regex jumps to end-of-formula, so the depth
+ * complaint. A regex literal that never closes is not consumed either
+ * ('unterminated-regex'): if the group still balances, parseBinderGroup
+ * diagnoses the guard text; if it doesn't — a pattern's star-slash ended
+ * the enclosing JSDoc comment early, cutting the formula off — the depth
  * check above reports it, with the truncation hint. */
-function guardAtomEnd(formula: string, j: number): number {
+function guardAtomEnd(
+  formula: string,
+  j: number,
+): number | "unterminated-regex" {
   const k = membershipEnd(formula, j);
   if (k === -1) return -1;
   let d = k;
   while (d < formula.length && /\s/.test(formula[d]!)) d++;
-  if (formula[d] === "/") return scanRegexLiteral(formula, d);
+  if (formula[d] === "/") {
+    const { end, close } = scanRegexLiteral(formula, d);
+    return close === -1 ? "unterminated-regex" : end;
+  }
   return scanIntervalExtent(formula, d);
 }
 
@@ -134,8 +142,15 @@ function parseBinderGroup(group: string): Binder[] {
   let range: Range | undefined;
   let pattern: StringPattern | undefined;
   if (guardText !== undefined) {
-    if (guardText.startsWith("/"))
-      pattern = parseRegexGuard(guardText, domainName);
+    // A leading '/' is a regex guard when the domain is string or when
+    // the literal closes (a deliberate regex on a numeric domain deserves
+    // the regex-guard domain complaint). An unterminated '/' on a
+    // non-string domain is more likely a mistyped '(' — fall through to
+    // parseRange for the precise interval complaint.
+    const regexGuard =
+      guardText.startsWith("/") &&
+      (domainName === "string" || scanRegexLiteral(guardText, 0).close !== -1);
+    if (regexGuard) pattern = parseRegexGuard(guardText, domainName);
     else range = parseRange(guardText, domainName);
   }
   const names = varsPart.split(/\s+/).filter(Boolean);

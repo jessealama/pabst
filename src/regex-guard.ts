@@ -21,7 +21,7 @@ const FLAG_ERRORS: Record<string, string> = {
   d: "regex flag 'd' has no effect on generation",
 };
 
-interface RegexScan {
+export interface RegexScan {
   /** Index just past the literal (closing '/' plus flags), or text.length
    * if the literal never closes. */
   end: number;
@@ -29,17 +29,24 @@ interface RegexScan {
   close: number;
 }
 
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
+
 /** Scan a JS regex literal starting at text[start] === '/'. Tracks
  * backslash escapes and [...] character classes, so '(', ')' and '/'
- * inside them do not close the literal. A line terminator ends the scan
- * unterminated, as in JS source. */
-function scanRegex(text: string, start: number): RegexScan {
+ * inside them do not close the literal. A line terminator — even after a
+ * backslash, which cannot escape one — ends the scan unterminated, as in
+ * JS source; admitting one would re-emit it inside a regex literal in the
+ * generated spec, where it is a SyntaxError. */
+export function scanRegexLiteral(text: string, start: number): RegexScan {
   let inClass = false;
   for (let i = start + 1; i < text.length; i++) {
     const c = text[i]!;
-    if (c === "\\") i++;
-    else if (c === "\n" || c === "\r") break;
-    else if (c === "[") inClass = true;
+    if (LINE_TERMINATOR.test(c)) break;
+    if (c === "\\") {
+      const next = text[i + 1];
+      if (next === undefined || LINE_TERMINATOR.test(next)) break;
+      i++;
+    } else if (c === "[") inClass = true;
     else if (c === "]") inClass = false;
     else if (c === "/" && !inClass) {
       const close = i;
@@ -51,30 +58,29 @@ function scanRegex(text: string, start: number): RegexScan {
   return { end: text.length, close: -1 };
 }
 
-/** Index just past the regex literal beginning at text[start], or
- * text.length if it never closes. The binder-group scanner uses this to
- * consume guards atomically. */
-export function scanRegexLiteral(text: string, start: number): number {
-  return scanRegex(text, start).end;
-}
-
 /** Full-string semantics: '∈ /re/' denotes the language of re, so lowering
  * wraps the pattern before handing it to fc.stringMatching. */
 export function anchoredSource(source: string): string {
   return `^(?:${source})$`;
 }
 
+/** The complaint a regex guard on a non-string domain raises; shared with
+ * arbitraryFor's backstop so the two throw sites cannot drift apart. */
+export function regexGuardDomainError(domain: Domain): PabstError {
+  return new PabstError(
+    `domain '${domain}' does not support ∈ regex guards — only string does`,
+  );
+}
+
 /** Parse and validate a regex guard like "/^[a-z]+$/u". Source and flags
- * are kept verbatim; anchoring happens at lowering. Validation probes the
- * bundled fast-check, so the accepted subset can never drift from the fc
- * version the generated spec runs against. */
+ * are kept verbatim; anchoring happens at lowering. Validation probes
+ * fast-check itself — a peer dependency, so it resolves to the same copy
+ * the generated spec runs against and the accepted subset cannot drift. */
 export function parseRegexGuard(text: string, domain: Domain): StringPattern {
   if (domain !== "string") {
-    throw new PabstError(
-      `domain '${domain}' does not support ∈ regex guards — only string does`,
-    );
+    throw regexGuardDomainError(domain);
   }
-  const { end, close } = scanRegex(text, 0);
+  const { end, close } = scanRegexLiteral(text, 0);
   if (close === -1) {
     throw new PabstError(
       `unterminated regular expression (in: ${text}) — ${TRUNCATION_HINT}`,

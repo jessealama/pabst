@@ -356,4 +356,20 @@ describe("parsePrefix — regex guards", () => {
       /does not support ∈ interval/,
     );
   });
+
+  it("gives the interval complaint for a slash typo on a numeric domain", () => {
+    // '/2, 5]' is a mistyped '(2, 5]', not a regex guard attempt: the
+    // literal never closes and the domain is numeric, so the precise
+    // interval complaint applies, not regex-guard diagnostics.
+    expectPabstError(
+      () => parsePrefix("forall (n: int ∈ /2, 5]), f(n)"),
+      /expected interval '\[lo, hi\]' or '\(lo, hi\]' after ∈, got: \/2, 5\]/,
+    );
+  });
+
+  it("does not blame the pattern when a terminated guard sits in an unbalanced group", () => {
+    const stray = () => parsePrefix("forall ((s: string ∈ /a/), f(s)");
+    expectPabstError(stray, /unbalanced parentheses in binder group/);
+    expect(stray).not.toThrow(/JSDoc/);
+  });
 });

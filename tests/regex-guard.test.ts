@@ -8,27 +8,27 @@ import { expectPabstError } from "./helpers/errors.js";
 
 describe("scanRegexLiteral", () => {
   it("scans a literal and its flags, stopping at the next non-letter", () => {
-    expect(scanRegexLiteral("/abc/u rest", 0)).toBe(6);
+    expect(scanRegexLiteral("/abc/u rest", 0)).toEqual({ end: 6, close: 4 });
   });
 
   it("does not close on a slash inside a character class", () => {
-    expect(scanRegexLiteral("/[/]a/", 0)).toBe(6);
+    expect(scanRegexLiteral("/[/]a/", 0)).toEqual({ end: 6, close: 5 });
   });
 
   it("does not close on an escaped slash", () => {
-    expect(scanRegexLiteral("/a\\/b/", 0)).toBe(6);
+    expect(scanRegexLiteral("/a\\/b/", 0)).toEqual({ end: 6, close: 5 });
   });
 
   it("ignores parentheses inside character classes", () => {
-    expect(scanRegexLiteral("/[(]/)", 0)).toBe(5);
+    expect(scanRegexLiteral("/[(]/)", 0)).toEqual({ end: 5, close: 4 });
   });
 
-  it("returns text.length for an unterminated literal", () => {
-    expect(scanRegexLiteral("/[a-z]", 0)).toBe(6);
+  it("returns text.length and close: -1 for an unterminated literal", () => {
+    expect(scanRegexLiteral("/[a-z]", 0)).toEqual({ end: 6, close: -1 });
   });
 
   it("scans from a non-zero start", () => {
-    expect(scanRegexLiteral("xx /a/u", 3)).toBe(7);
+    expect(scanRegexLiteral("xx /a/u", 3)).toEqual({ end: 7, close: 5 });
   });
 });
 
@@ -84,6 +84,31 @@ describe("parseRegexGuard — rejected", () => {
   it("treats a newline as terminating the literal (as JS does)", () => {
     expectPabstError(
       () => parseRegexGuard("/a\nb/", "string"),
+      /unterminated regular expression/,
+    );
+  });
+
+  it("does not let a backslash escape a line terminator (as JS does)", () => {
+    // Were the escaped newline admitted into pattern.source, lowering
+    // would re-emit it inside a regex literal — a SyntaxError in the
+    // generated spec, since regex literals cannot span lines.
+    expectPabstError(
+      () => parseRegexGuard("/a\\\nb/", "string"),
+      /unterminated regular expression/,
+    );
+    expectPabstError(
+      () => parseRegexGuard("/a\\\rb/", "string"),
+      /unterminated regular expression/,
+    );
+  });
+
+  it("treats U+2028 and U+2029 as line terminators (as JS does)", () => {
+    expectPabstError(
+      () => parseRegexGuard("/a\u2028b/", "string"),
+      /unterminated regular expression/,
+    );
+    expectPabstError(
+      () => parseRegexGuard("/a\u2029b/", "string"),
       /unterminated regular expression/,
     );
   });
