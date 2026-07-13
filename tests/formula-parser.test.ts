@@ -58,6 +58,12 @@ describe("parseBody — atoms keep their JS", () => {
       body: '__bool(p(`${a} ∧ ${b}`), "p(`${a} ∧ ${b}`)")',
     });
   });
+  it("keeps a connective inside a template substitution within one atom", () => {
+    expect(lo("`${a ∧ b}` === s")).toEqual({
+      preconditions: [],
+      body: '__bool(`${a ∧ b}` === s, "`${a ∧ b}` === s")',
+    });
+  });
 });
 
 describe("parseBody — equations", () => {

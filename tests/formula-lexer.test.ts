@@ -79,6 +79,20 @@ describe("lexFormula — regex and slash fallbacks", () => {
   });
 });
 
+describe("lexFormula — template substitutions nest", () => {
+  it("tags a template head as open and its tail as close", () => {
+    expect(kinds("`${a ∧ b}` === s")).toEqual([
+      "open",
+      "js",
+      "and",
+      "js",
+      "close",
+      "js",
+      "js",
+    ]);
+  });
+});
+
 describe("lexFormula — rejected quantifiers", () => {
   it("rejects ∃ / exists with a teaching error", () => {
     expectPabstError(

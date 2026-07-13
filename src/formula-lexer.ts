@@ -23,11 +23,16 @@ const OPEN = new Set([
   ts.SyntaxKind.OpenParenToken,
   ts.SyntaxKind.OpenBracketToken,
   ts.SyntaxKind.OpenBraceToken,
+  // `…${ opens a substitution: its contents are never at depth 0.
+  ts.SyntaxKind.TemplateHead,
 ]);
 const CLOSE = new Set([
   ts.SyntaxKind.CloseParenToken,
   ts.SyntaxKind.CloseBracketToken,
   ts.SyntaxKind.CloseBraceToken,
+  // }…` ends the last substitution. TemplateMiddle (}…${) closes one and
+  // opens the next — net depth unchanged — so it stays a js token.
+  ts.SyntaxKind.TemplateTail,
 ]);
 
 export interface ScannedToken {
