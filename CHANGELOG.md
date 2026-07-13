@@ -4,6 +4,14 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.13.0] - 2026-07-13
+
+### Changed
+
+- **Breaking:** the property body now goes in braces after the binder
+  groups — `forall (x: int) { x + 1 > x }` — replacing the comma
+  separator; the old form is rejected with a migration hint.
+
 ## [0.12.1] - 2026-07-13
 
 ### Fixed
