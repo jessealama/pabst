@@ -12,7 +12,7 @@ describe("generate", () => {
   beforeAll(() => {
     fs.writeFileSync(
       path.join(dir, "bar.ts"),
-      `/** @ensures{pos} forall (n: nat), bar(n) >= 0 */\nexport function bar(n: number): number { return n; }\n`,
+      `/** @ensures{pos} forall (n: nat) { bar(n) >= 0 } */\nexport function bar(n: number): number { return n; }\n`,
       "utf8",
     );
     fs.writeFileSync(
@@ -57,7 +57,7 @@ describe("generate: source outside the current directory", () => {
     fs.mkdirSync(path.join(dir, "pkg"));
     fs.writeFileSync(
       path.join(dir, "evil.ts"),
-      `/** @ensures{pos} forall (n: nat), evil(n) >= 0 */\nexport function evil(n: number): number { return n; }\n`,
+      `/** @ensures{pos} forall (n: nat) { evil(n) >= 0 } */\nexport function evil(n: number): number { return n; }\n`,
       "utf8",
     );
     process.chdir(path.join(dir, "pkg"));

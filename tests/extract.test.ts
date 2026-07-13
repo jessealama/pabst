@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { extractFromSource } from "../src/extract.js";
 import { expectPabstError } from "./helpers/errors.js";
 
-const FOO = `/** @ensures{nonzero} forall (x: int) (y: number),
- *    Number.isInteger(y) ==> foo(x, y) !== 0 */
+const FOO = `/** @ensures{nonzero} forall (x: int) (y: number) {
+ *    Number.isInteger(y) ==> foo(x, y) !== 0 } */
 export function foo(x: bigint, y: number): number {
   return Number(x) + (y === 0 ? 1 : y);
 }
@@ -32,27 +32,38 @@ describe("extract", () => {
 
   it("records every @ensures in a single JSDoc block as its own property", () => {
     const src = `/**
- * @ensures{lo} forall (x: int), foo(x) >= 0
- * @ensures{hi} forall (x: int), foo(x) <= 100
+ * @ensures{lo} forall (x: int) { foo(x) >= 0 }
+ * @ensures{hi} forall (x: int) { foo(x) <= 100 }
  */
 export function foo(x: number): number { return x; }
 `;
     const r = extractFromSource(src, "multi.ts");
     expect(r.annotations.map((a) => a.propertyName)).toEqual(["lo", "hi"]);
-    expect(r.annotations[0]!.formula).toBe("forall (x: int), foo(x) >= 0");
-    expect(r.annotations[1]!.formula).toBe("forall (x: int), foo(x) <= 100");
+    expect(r.annotations[0]!.formula).toBe("forall (x: int) { foo(x) >= 0 }");
+    expect(r.annotations[1]!.formula).toBe("forall (x: int) { foo(x) <= 100 }");
+  });
+
+  it("passes a braced body through JSDoc extraction verbatim", () => {
+    const src = `/** @ensures{p} forall (x: int) { \`\${x}\` === String(x) } */
+export function f(x: number): number { return x; }
+`;
+    const r = extractFromSource(src, "braces.ts");
+    expect(r.annotations).toHaveLength(1);
+    expect(r.annotations[0]!.formula).toBe(
+      "forall (x: int) { `${x}` === String(x) }",
+    );
   });
 });
 
 const CLASS_OK = `export class Counter {
   constructor(private readonly n: number) {}
 
-  /** @ensures{incAddsOne} forall (x: int), new Counter(x).inc().value === x + 1 */
+  /** @ensures{incAddsOne} forall (x: int) { new Counter(x).inc().value === x + 1 } */
   inc(): Counter {
     return new Counter(this.n + 1);
   }
 
-  /** @ensures{ofRoundTrips} forall (x: int), Counter.of(x).value === x */
+  /** @ensures{ofRoundTrips} forall (x: int) { Counter.of(x).value === x } */
   static of(x: number): Counter {
     return new Counter(x);
   }
@@ -68,14 +79,14 @@ const CLASS_OK = `export class Counter {
   }
 }
 
-/** @ensures{incAddsOne} forall (x: int), bump(x) === x + 1 */
+/** @ensures{incAddsOne} forall (x: int) { bump(x) === x + 1 } */
 export function bump(x: number): number {
   return x + 1;
 }
 `;
 
 const CLASS_PRIVATE = `export class Box {
-  /** @ensures{p} forall (x: int), Box.touch(x) === x */
+  /** @ensures{p} forall (x: int) { Box.touch(x) === x } */
   private touch(x: number): number {
     return x;
   }
@@ -85,7 +96,7 @@ const CLASS_PRIVATE = `export class Box {
 const CLASS_ACCESSOR = `export class Box {
   constructor(private readonly n: number) {}
 
-  /** @ensures{p} forall (x: int), new Box(x).value === x */
+  /** @ensures{p} forall (x: int) { new Box(x).value === x } */
   get value(): number {
     return this.n;
   }
@@ -93,7 +104,7 @@ const CLASS_ACCESSOR = `export class Box {
 `;
 
 const CLASS_UNEXPORTED = `class Box {
-  /** @ensures{p} forall (x: int), Box.id(x) === x */
+  /** @ensures{p} forall (x: int) { Box.id(x) === x } */
   static id(x: number): number {
     return x;
   }
@@ -102,8 +113,8 @@ const CLASS_UNEXPORTED = `class Box {
 
 const CLASS_DUP = `export class Box {
   /**
-   * @ensures{p} forall (x: int), Box.id(x) === x
-   * @ensures{p} forall (x: int), Box.id(x) === x
+   * @ensures{p} forall (x: int) { Box.id(x) === x }
+   * @ensures{p} forall (x: int) { Box.id(x) === x }
    */
   static id(x: number): number {
     return x;
@@ -174,7 +185,7 @@ describe("extract — class methods", () => {
 
   it("throws on @ensures on a method of an anonymous class", () => {
     const src = `export default class {
-  /** @ensures{p} forall (x: int), x === x */
+  /** @ensures{p} forall (x: int) { x === x } */
   m(x: number): number { return x; }
 }
 `;
@@ -186,7 +197,7 @@ describe("extract — class methods", () => {
 
   it("reports a constructor as 'constructor' when @ensures sits on it", () => {
     const src = `export class Box {
-  /** @ensures{p} forall (x: int), x === x */
+  /** @ensures{p} forall (x: int) { x === x } */
   constructor(readonly n: number) {}
 }
 `;
@@ -198,7 +209,7 @@ describe("extract — class methods", () => {
 
   it("reports a computed-name member as '<computed>' when @ensures sits on it", () => {
     const src = `export class Box {
-  /** @ensures{p} forall (x: int), x === x */
+  /** @ensures{p} forall (x: int) { x === x } */
   [Symbol.iterator](): number { return 0; }
 }
 `;
@@ -209,10 +220,10 @@ describe("extract — class methods", () => {
   });
 });
 
-const ARROW_EXPORT = `/** @ensures{idArrow} forall (x: int), foo(x) === x */
+const ARROW_EXPORT = `/** @ensures{idArrow} forall (x: int) { foo(x) === x } */
 export const foo = (x: number): number => x;
 
-/** @ensures{idFn} forall (x: int), bar(x) === x */
+/** @ensures{idFn} forall (x: int) { bar(x) === x } */
 export const bar = function (x: number): number { return x; };
 `;
 
