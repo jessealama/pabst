@@ -1,7 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
-import { buildEnvelope, type FileResult, type RunMeta } from "./envelope.js";
-import type { Envelope } from "./contract.js";
+import {
+  buildEnvelope,
+  type Envelope,
+  type FileResult,
+  type RunMeta,
+} from "./envelope.js";
 
 /** Where the spawned vitest writes its JSON results, relative to cwd. */
 export const RESULTS_FILE = ".pabst/.last-run.json";

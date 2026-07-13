@@ -17,17 +17,6 @@ export interface Issue {
   error?: string;
 }
 
-export interface Envelope {
-  version: string;
-  startedAt: string;
-  cwd: string;
-  seed: number;
-  generated: number;
-  passed: number;
-  failed: number;
-  issues: Issue[];
-}
-
 /**
  * Module specifier generated tests import the runtime from. Must match
  * package.json's `name` + `exports` map (pinned by a test).
@@ -55,7 +44,11 @@ export const FC_PROPERTY_FAILED_MESSAGE = "Property failed by returning false";
 
 export const ISSUE_SENTINEL = "PABST_ISSUE:";
 
-const ISSUE_RE = new RegExp(`${ISSUE_SENTINEL}(\\{.*\\})`);
+// Escaped so a future sentinel containing regex metacharacters can't
+// silently change what the regex matches.
+const ISSUE_RE = new RegExp(
+  `${ISSUE_SENTINEL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\{.*\\})`,
+);
 
 /** Encode an issue for the wire: sentinel + single-line JSON, carried on an Error message. */
 export function encodeIssue(issue: Issue): string {
