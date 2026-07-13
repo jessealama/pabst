@@ -19,7 +19,7 @@ import {
 } from "../src/qualified-name.js";
 import * as runtime from "../src/runtime.js";
 import type { z } from "zod";
-import type { IssueSchema } from "../src/issue-schema.js";
+import { IssueSchema, issueJsonSchema } from "../src/issue-schema.js";
 
 describe("contract pins", () => {
   it("pins the literal spellings of the contract constants", () => {
@@ -95,5 +95,18 @@ describe("contract pins", () => {
     // Issue interface, never diverge from it. Fails to COMPILE on drift.
     const check: Issue = null as unknown as z.infer<typeof IssueSchema>;
     expect(check).toBeNull();
+  });
+
+  it("committed schema file equals the generated schema", () => {
+    // schemas/issue.schema.json is generated output (npm run generate:schema).
+    // If this fails, someone edited the file by hand or changed
+    // issue-schema.ts without regenerating.
+    const committed = JSON.parse(
+      readFileSync(
+        new URL("../schemas/issue.schema.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    expect(committed).toEqual(issueJsonSchema());
   });
 });

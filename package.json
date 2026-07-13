@@ -41,6 +41,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
+    "generate:schema": "npm run build && node scripts/generate-issue-schema.mjs && prettier --write schemas/issue.schema.json",
     "format:check": "prettier --check .",
     "coverage": "vitest run --coverage",
     "mutation": "stryker run"

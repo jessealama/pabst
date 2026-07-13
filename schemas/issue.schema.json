@@ -1,25 +1,56 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://pabst.test/schemas/issue.schema.json",
-  "title": "Pabst Issue",
-  "description": "A single property failure emitted by the pabst reporter.",
-  "type": "object",
   "oneOf": [
     {
-      "title": "falsified",
-      "additionalProperties": false,
-      "required": ["file", "function", "property", "kind", "counterexample"],
+      "type": "object",
       "properties": {
-        "file": { "type": "string" },
-        "function": { "$ref": "#/definitions/functionName" },
-        "property": { "type": "string", "minLength": 1 },
-        "kind": { "const": "falsified" },
-        "counterexample": { "$ref": "#/definitions/counterexample" }
-      }
+        "file": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/functionName"
+        },
+        "property": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "falsified"
+        },
+        "counterexample": {
+          "$ref": "#/definitions/counterexample"
+        }
+      },
+      "required": ["file", "function", "property", "kind", "counterexample"],
+      "additionalProperties": false,
+      "title": "falsified"
     },
     {
-      "title": "threw",
-      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/functionName"
+        },
+        "property": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "threw"
+        },
+        "counterexample": {
+          "$ref": "#/definitions/counterexample"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
       "required": [
         "file",
         "function",
@@ -28,38 +59,61 @@
         "counterexample",
         "error"
       ],
-      "properties": {
-        "file": { "type": "string" },
-        "function": { "$ref": "#/definitions/functionName" },
-        "property": { "type": "string", "minLength": 1 },
-        "kind": { "const": "threw" },
-        "counterexample": { "$ref": "#/definitions/counterexample" },
-        "error": { "type": "string" }
-      }
+      "additionalProperties": false,
+      "title": "threw"
     },
     {
-      "title": "exhausted",
-      "additionalProperties": false,
-      "required": ["file", "function", "property", "kind", "error"],
+      "type": "object",
       "properties": {
-        "file": { "type": "string" },
-        "function": { "$ref": "#/definitions/functionName" },
-        "property": { "type": "string", "minLength": 1 },
-        "kind": { "const": "exhausted" },
-        "error": { "type": "string" }
-      }
+        "file": {
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/definitions/functionName"
+        },
+        "property": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "exhausted"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": ["file", "function", "property", "kind", "error"],
+      "additionalProperties": false,
+      "title": "exhausted"
     }
   ],
+  "title": "Pabst Issue",
+  "description": "A single property failure emitted by the pabst reporter.",
   "definitions": {
     "functionName": {
       "type": "string",
-      "description": "Bare function name, or Class#method (instance) / Class.method (static).",
-      "pattern": "^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$"
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*([#.][A-Za-z_][A-Za-z0-9_]*)?$",
+      "description": "Bare function name, or Class#method (instance) / Class.method (static)."
     },
     "counterexample": {
       "type": "object",
-      "minProperties": 1,
-      "additionalProperties": { "type": ["number", "boolean", "string"] }
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      }
     }
   }
 }
