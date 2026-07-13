@@ -3,13 +3,6 @@ import { parsePrefix } from "../src/prefix-parser.js";
 import { expectPabstError } from "./helpers/errors.js";
 
 describe("parsePrefix — errors", () => {
-  it("throws when no comma separates the binders from the body", () => {
-    expectPabstError(
-      () => parsePrefix("forall (x: int) foo(x)"),
-      /expected ',' separating binders from body/,
-    );
-  });
-
   it("throws on an unbalanced binder group", () => {
     expectPabstError(
       () => parsePrefix("forall (x: int, x === x"),
@@ -19,28 +12,28 @@ describe("parsePrefix — errors", () => {
 
   it("throws on an empty body", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int),"),
+      () => parsePrefix("forall (x: int) { }"),
       /property body is empty/,
     );
   });
 
   it("throws on a binder group without ':'", () => {
     expectPabstError(
-      () => parsePrefix("forall (x int), x === x"),
+      () => parsePrefix("forall (x int) { x === x }"),
       /binder group missing ':'/,
     );
   });
 
   it("throws on a binder group without variable names", () => {
     expectPabstError(
-      () => parsePrefix("forall (: int), x === x"),
+      () => parsePrefix("forall (: int) { x === x }"),
       /binder group has no variable names/,
     );
   });
 
   it("throws on an invalid binder variable name", () => {
     expectPabstError(
-      () => parsePrefix("forall (x-y: int), x === x"),
+      () => parsePrefix("forall (x-y: int) { x === x }"),
       /invalid binder variable name/,
     );
   });
@@ -48,7 +41,7 @@ describe("parsePrefix — errors", () => {
 
 describe("parsePrefix", () => {
   it("parses multiple binder groups and the body", () => {
-    const r = parsePrefix("forall (x: int) (y: number), foo(x, y) !== 0");
+    const r = parsePrefix("forall (x: int) (y: number) { foo(x, y) !== 0 }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "int" },
       { varName: "y", domain: "number" },
@@ -57,7 +50,7 @@ describe("parsePrefix", () => {
   });
 
   it("supports Lean-style multi-var grouping", () => {
-    const r = parsePrefix("forall (x y: int), x + y === y + x");
+    const r = parsePrefix("forall (x y: int) { x + y === y + x }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "int" },
       { varName: "y", domain: "int" },
@@ -66,41 +59,41 @@ describe("parsePrefix", () => {
   });
 
   it("accepts the Unicode ∀ form", () => {
-    const r = parsePrefix("∀ (n: nat), n >= 0");
+    const r = parsePrefix("∀ (n: nat) { n >= 0 }");
     expect(r.binders).toEqual([{ varName: "n", domain: "nat" }]);
     expect(r.body).toBe("n >= 0");
   });
 
-  it("splits prefix from body at the first depth-0 comma, ignoring call commas", () => {
-    const r = parsePrefix("forall (x: int), f(x, x) === g(x, x)");
+  it("keeps depth-0 call commas inside the braced body", () => {
+    const r = parsePrefix("forall (x: int) { f(x, x) === g(x, x) }");
     expect(r.binders).toEqual([{ varName: "x", domain: "int" }]);
     expect(r.body).toBe("f(x, x) === g(x, x)");
   });
 
   it("rejects an unknown domain", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: float), x === x"),
+      () => parsePrefix("forall (x: float) { x === x }"),
       /unknown generation domain 'float'/,
     );
   });
 
   it("requires forall", () => {
-    expectPabstError(() => parsePrefix("(x: int), x === x"), /forall/);
+    expectPabstError(() => parsePrefix("(x: int) { x === x }"), /forall/);
   });
 
   it("requires at least one binder group", () => {
-    expectPabstError(() => parsePrefix("forall , x === x"), /binder group/);
+    expectPabstError(() => parsePrefix("forall { x === x }"), /binder group/);
   });
 });
 
 describe("parsePrefix — existential", () => {
   it("rejects a leading ∃ / exists with a teaching error", () => {
     expectPabstError(
-      () => parsePrefix("∃ (x: int), p(x)"),
+      () => parsePrefix("∃ (x: int) { p(x) }"),
       /existential quantifiers .* not supported/i,
     );
     expectPabstError(
-      () => parsePrefix("exists (x: int), p(x)"),
+      () => parsePrefix("exists (x: int) { p(x) }"),
       /existential quantifiers .* not supported/i,
     );
   });
@@ -108,7 +101,7 @@ describe("parsePrefix — existential", () => {
 
 describe("parsePrefix — interval constraints", () => {
   it("parses ∈ with a closed interval", () => {
-    const r = parsePrefix("forall (x: int ∈ [1, 30]), x <= 30");
+    const r = parsePrefix("forall (x: int ∈ [1, 30]) { x <= 30 }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "int", range: { min: "1", max: "30" } },
     ]);
@@ -116,14 +109,14 @@ describe("parsePrefix — interval constraints", () => {
   });
 
   it("parses the ASCII 'in' fallback", () => {
-    const r = parsePrefix("forall (x: int in [1, 30]), x <= 30");
+    const r = parsePrefix("forall (x: int in [1, 30]) { x <= 30 }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "int", range: { min: "1", max: "30" } },
     ]);
   });
 
   it("applies the interval to every name in a Lean-style group", () => {
-    const r = parsePrefix("forall (x y: int ∈ [1, 30]), x + y >= 2");
+    const r = parsePrefix("forall (x y: int ∈ [1, 30]) { x + y >= 2 }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "int", range: { min: "1", max: "30" } },
       { varName: "y", domain: "int", range: { min: "1", max: "30" } },
@@ -132,7 +125,7 @@ describe("parsePrefix — interval constraints", () => {
 
   it("mixes ranged and unranged binder groups", () => {
     const r = parsePrefix(
-      "forall (x: int ∈ [1, 30]) (s: string), f(x, s) === true",
+      "forall (x: int ∈ [1, 30]) (s: string) { f(x, s) === true }",
     );
     expect(r.binders).toEqual([
       { varName: "x", domain: "int", range: { min: "1", max: "30" } },
@@ -141,34 +134,34 @@ describe("parsePrefix — interval constraints", () => {
   });
 
   it("parses a number interval with decimal endpoints", () => {
-    const r = parsePrefix("forall (x: number ∈ [0.5, 1e6]), x > 0");
+    const r = parsePrefix("forall (x: number ∈ [0.5, 1e6]) { x > 0 }");
     expect(r.binders).toEqual([
       { varName: "x", domain: "number", range: { min: "0.5", max: "1e6" } },
     ]);
   });
 
   it("does not mistake the 'in' inside 'bigint' for the membership keyword", () => {
-    const r = parsePrefix("forall (b: bigint), b === b");
+    const r = parsePrefix("forall (b: bigint) { b === b }");
     expect(r.binders).toEqual([{ varName: "b", domain: "bigint" }]);
   });
 
   it("rejects an interval on a non-numeric domain", () => {
     expectPabstError(
-      () => parsePrefix("forall (s: string ∈ [1, 30]), s === s"),
+      () => parsePrefix("forall (s: string ∈ [1, 30]) { s === s }"),
       /does not support ∈/,
     );
   });
 
   it("rejects an inverted interval", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int ∈ [30, 1]), x === x"),
+      () => parsePrefix("forall (x: int ∈ [30, 1]) { x === x }"),
       /empty interval/,
     );
   });
 
   it("still rejects an unknown domain when an interval is attached", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: float ∈ [1, 30]), x === x"),
+      () => parsePrefix("forall (x: float ∈ [1, 30]) { x === x }"),
       /unknown generation domain 'float'/,
     );
   });
@@ -182,21 +175,21 @@ describe("parsePrefix — interval constraints", () => {
 
   it("reports a forgotten ']' before the next binder as a missing delimiter, not unbalanced parens", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int ∈ [1, 2, y: int), x > 0"),
+      () => parsePrefix("forall (x: int ∈ [1, 2, y: int) { x > 0 }"),
       /missing its closing/,
     );
   });
 
   it("reports a forgotten ']' before the body as a missing delimiter", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int ∈ [1, 2, x > 0), x !== 3"),
+      () => parsePrefix("forall (x: int ∈ [1, 2, x > 0) { x !== 3 }"),
       /missing its closing/,
     );
   });
 
   it("reports three endpoints in a well-delimited interval as such", () => {
     expectPabstError(
-      () => parsePrefix("forall (x: int ∈ [1, 2, 3]), x > 0"),
+      () => parsePrefix("forall (x: int ∈ [1, 2, 3]) { x > 0 }"),
       /exactly two endpoints/,
     );
   });
@@ -204,7 +197,7 @@ describe("parsePrefix — interval constraints", () => {
 
 describe("parsePrefix — open and unbounded intervals", () => {
   it("parses a half-open interval whose ']' would unbalance the group", () => {
-    const r = parsePrefix("forall (x: number ∈ (0, 1]), x > 0");
+    const r = parsePrefix("forall (x: number ∈ (0, 1]) { x > 0 }");
     expect(r.binders).toEqual([
       {
         varName: "x",
@@ -216,7 +209,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
   });
 
   it("parses a half-open interval whose ')' would close the group early", () => {
-    const r = parsePrefix("forall (n: int ∈ [0, 10)), n < 10");
+    const r = parsePrefix("forall (n: int ∈ [0, 10)) { n < 10 }");
     expect(r.binders).toEqual([
       {
         varName: "n",
@@ -228,7 +221,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
   });
 
   it("parses an unbounded interval", () => {
-    const r = parsePrefix("forall (x: number ∈ (0, ∞)), x > 0");
+    const r = parsePrefix("forall (x: number ∈ (0, ∞)) { x > 0 }");
     expect(r.binders).toEqual([
       {
         varName: "x",
@@ -239,7 +232,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
   });
 
   it("parses the ASCII 'in' fallback with an open interval", () => {
-    const r = parsePrefix("forall (x: number in (0, 1]), x > 0");
+    const r = parsePrefix("forall (x: number in (0, 1]) { x > 0 }");
     expect(r.binders).toEqual([
       {
         varName: "x",
@@ -251,7 +244,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
 
   it("handles several open-interval groups and call commas in the body", () => {
     const r = parsePrefix(
-      "forall (x: number ∈ (0, 1]) (n: int ∈ [0, 10)), f(x, n) === g(n, x)",
+      "forall (x: number ∈ (0, 1]) (n: int ∈ [0, 10)) { f(x, n) === g(n, x) }",
     );
     expect(r.binders).toEqual([
       {
@@ -269,7 +262,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
   });
 
   it("applies an open interval to every name in a Lean-style group", () => {
-    const r = parsePrefix("forall (x y: number ∈ (0, 1)), x * y < 1");
+    const r = parsePrefix("forall (x y: number ∈ (0, 1)) { x * y < 1 }");
     expect(r.binders).toEqual([
       {
         varName: "x",
@@ -285,7 +278,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
   });
 
   it("does not treat the 'in' inside 'bigint' as a membership token", () => {
-    const r = parsePrefix("forall (b: bigint ∈ (0n, 100n]), b > 0n");
+    const r = parsePrefix("forall (b: bigint ∈ (0n, 100n]) { b > 0n }");
     expect(r.binders).toEqual([
       {
         varName: "b",
@@ -299,7 +292,7 @@ describe("parsePrefix — open and unbounded intervals", () => {
 describe("parsePrefix — regex guards", () => {
   it("parses a regex guard on a string binder", () => {
     const { binders, body } = parsePrefix(
-      "forall (s: string ∈ /^[a-z]+$/), f(s)",
+      "forall (s: string ∈ /^[a-z]+$/) { f(s) }",
     );
     expect(binders).toEqual([
       {
@@ -312,25 +305,27 @@ describe("parsePrefix — regex guards", () => {
   });
 
   it("supports the ASCII 'in' fallback and flags", () => {
-    const { binders } = parsePrefix("forall (s: string in /\\p{Lu}+/u), f(s)");
+    const { binders } = parsePrefix(
+      "forall (s: string in /\\p{Lu}+/u) { f(s) }",
+    );
     expect(binders[0]!.pattern).toEqual({ source: "\\p{Lu}+", flags: "u" });
   });
 
   it("shares one pattern across grouped variables", () => {
-    const { binders } = parsePrefix("forall (s t: string ∈ /a|b/), f(s, t)");
+    const { binders } = parsePrefix("forall (s t: string ∈ /a|b/) { f(s, t) }");
     expect(binders.map((b) => b.varName)).toEqual(["s", "t"]);
     expect(binders[0]!.pattern).toEqual({ source: "a|b", flags: "" });
     expect(binders[1]!.pattern).toEqual({ source: "a|b", flags: "" });
   });
 
   it("consumes parens and slashes inside the pattern atomically", () => {
-    const { binders } = parsePrefix("forall (s: string ∈ /[(]a[/]/), f(s)");
+    const { binders } = parsePrefix("forall (s: string ∈ /[(]a[/]/) { f(s) }");
     expect(binders[0]!.pattern).toEqual({ source: "[(]a[/]", flags: "" });
   });
 
   it("scans a pattern with balanced groups without miscounting", () => {
     const { binders } = parsePrefix(
-      "forall (s: string ∈ /(a|b)+/) (n: int), f(s, n)",
+      "forall (s: string ∈ /(a|b)+/) (n: int) { f(s, n) }",
     );
     expect(binders[0]!.pattern).toEqual({ source: "(a|b)+", flags: "" });
     expect(binders[1]).toEqual({ varName: "n", domain: "int" });
@@ -338,7 +333,7 @@ describe("parsePrefix — regex guards", () => {
 
   it("rejects a regex guard on a non-string domain", () => {
     expectPabstError(
-      () => parsePrefix("forall (n: int ∈ /[0-9]+/), f(n)"),
+      () => parsePrefix("forall (n: int ∈ /[0-9]+/) { f(n) }"),
       /only string/,
     );
   });
@@ -352,7 +347,7 @@ describe("parsePrefix — regex guards", () => {
 
   it("still rejects intervals on string binders", () => {
     expectPabstError(
-      () => parsePrefix("forall (s: string ∈ [1, 2]), f(s)"),
+      () => parsePrefix("forall (s: string ∈ [1, 2]) { f(s) }"),
       /does not support ∈ interval/,
     );
   });
@@ -362,7 +357,7 @@ describe("parsePrefix — regex guards", () => {
     // literal never closes and the domain is numeric, so the precise
     // interval complaint applies, not regex-guard diagnostics.
     expectPabstError(
-      () => parsePrefix("forall (n: int ∈ /2, 5]), f(n)"),
+      () => parsePrefix("forall (n: int ∈ /2, 5]) { f(n) }"),
       /expected interval '\[lo, hi\]' or '\(lo, hi\]' after ∈, got: \/2, 5\]/,
     );
   });
@@ -371,5 +366,57 @@ describe("parsePrefix — regex guards", () => {
     const stray = () => parsePrefix("forall ((s: string ∈ /a/), f(s)");
     expectPabstError(stray, /unbalanced parentheses in binder group/);
     expect(stray).not.toThrow(/JSDoc/);
+  });
+});
+
+describe("parsePrefix — braced body", () => {
+  it("rejects the pre-0.13 comma form with a migration hint", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int), x + 1 > x"),
+      /body goes in braces/,
+    );
+  });
+
+  it("throws when the body never opens with '{'", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int) foo(x)"),
+      /expected '\{' to open the property body/,
+    );
+  });
+
+  it("throws on unbalanced braces in the body", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int) { f({a: 1})"),
+      /unbalanced braces in property body/,
+    );
+  });
+
+  it("throws on text after the closing '}'", () => {
+    expectPabstError(
+      () => parsePrefix("forall (x: int) { x > 0 } stray"),
+      /unexpected text after the property body's closing '\}'/,
+    );
+  });
+
+  it("keeps a depth-0 object literal in the body intact", () => {
+    const r = parsePrefix("forall (x: int) { ({ a: x }).a === x }");
+    expect(r.body).toBe("({ a: x }).a === x");
+  });
+
+  it("keeps an arrow-function block in the body intact", () => {
+    const r = parsePrefix(
+      "forall (x: int) { [x].every((v) => { return v === x }) }",
+    );
+    expect(r.body).toBe("[x].every((v) => { return v === x })");
+  });
+
+  it("keeps a template substitution in the body intact", () => {
+    const r = parsePrefix("forall (x: int) { `${x}` === String(x) }");
+    expect(r.body).toBe("`${x}` === String(x)");
+  });
+
+  it("parses a multi-line braced body", () => {
+    const r = parsePrefix("forall (x: int) {\n  x + 1 > x\n}");
+    expect(r.body).toBe("x + 1 > x");
   });
 });
