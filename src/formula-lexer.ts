@@ -49,9 +49,9 @@ export interface ScannedToken {
  * continuation after a `${…}` substitution closes (the scanner would
  * otherwise leave template mode and corrupt the middle/tail text).
  */
-export function* scanTokens(text: string): Generator<ScannedToken> {
+export function* scanTokens(text: string, start = 0): Generator<ScannedToken> {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, /*skipTrivia*/ true);
-  scanner.setText(text);
+  scanner.setText(text, start);
   let kind: ts.SyntaxKind;
   let prev: ts.SyntaxKind | null = null;
   let prevText = "";
