@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest";
 import { desugarEquations } from "../src/equations.js";
 import { PabstError } from "../src/errors.js";
 
+const throws = (input: string, re: RegExp) => {
+  expect(() => desugarEquations(input)).toThrowError(PabstError);
+  expect(() => desugarEquations(input)).toThrowError(re);
+};
+
 describe("desugarEquations — rewrites", () => {
   it("rewrites ≡ to Object.is", () => {
     expect(desugarEquations("x ≡ y")).toBe("Object.is(x, y)");
@@ -16,29 +21,6 @@ describe("desugarEquations — rewrites", () => {
     expect(desugarEquations("x ≢ y")).toBe("!Object.is(x, y)");
     expect(desugarEquations("x ≢ -0")).toBe("!Object.is(x, -0)");
   });
-  it("rewrites inside callback bodies (uniform depth)", () => {
-    expect(desugarEquations("xs.every(x => x ≡ 0)")).toBe(
-      "xs.every(x => Object.is(x, 0))",
-    );
-    expect(desugarEquations("xs.every(x => x ≢ 0)")).toBe(
-      "xs.every(x => !Object.is(x, 0))",
-    );
-  });
-  it("supports JS ! over a nested equation", () => {
-    expect(desugarEquations("xs.some(x => !(x ≡ 0))")).toBe(
-      "xs.some(x => !(Object.is(x, 0)))",
-    );
-  });
-  it("rewrites recursively on both sides of an equation", () => {
-    expect(desugarEquations("f(a ≡ b) ≡ c")).toBe(
-      "Object.is(f(Object.is(a, b)), c)",
-    );
-  });
-  it("allows explicitly parenthesized nesting (user parens preserved)", () => {
-    expect(desugarEquations("flag ≡ (x ≡ y)")).toBe(
-      "Object.is(flag, (Object.is(x, y)))",
-    );
-  });
   it("preserves operand formatting", () => {
     expect(desugarEquations("f( a , b ) ≡ c")).toBe("Object.is(f( a , b ), c)");
   });
@@ -48,16 +30,6 @@ describe("desugarEquations — rewrites", () => {
     );
     expect(desugarEquations("t ≡ `${a} ≢ ${b}`")).toBe(
       "Object.is(t, `${a} ≢ ${b}`)",
-    );
-  });
-  it("rewrites a real equation inside a substitution", () => {
-    expect(desugarEquations("s ≡ `v: ${x ≡ y}`")).toBe(
-      "Object.is(s, `v: ${Object.is(x, y)}`)",
-    );
-  });
-  it("rewrites equations inside nested template substitutions", () => {
-    expect(desugarEquations("s ≡ `a${ `b${x ≡ y}` }d`")).toBe(
-      "Object.is(s, `a${ `b${Object.is(x, y)}` }d`)",
     );
   });
   it("treats / after this, true, postfix ++, and a template tail as division", () => {
@@ -73,6 +45,29 @@ describe("desugarEquations — rewrites", () => {
     expect(desugarEquations("`${x}` / a ≡ b / c")).toBe(
       "Object.is(`${x}` / a, b / c)",
     );
+  });
+});
+
+describe("desugarEquations — ≡ is top-level only", () => {
+  it("rejects a nested equation with an Object.is hint", () => {
+    throws("xs.every(x => x ≡ 0)", /top level.*Object\.is/s);
+    throws("xs.every(x => x ≢ 0)", /top level.*Object\.is/s);
+    throws("xs.some(x => !(x ≡ 0))", /top level.*Object\.is/s);
+    throws("f(a ≡ b) ≡ c", /top level.*Object\.is/s);
+    throws("flag ≡ (x ≡ y)", /top level.*Object\.is/s);
+    throws("s ≡ `v: ${x ≡ y}`", /top level.*Object\.is/s);
+    throws("s ≡ `a${ `b${x ≡ y}` }d`", /top level.*Object\.is/s);
+  });
+  it("accepts an explicit Object.is in the nested position instead", () => {
+    expect(desugarEquations("xs.every(x => Object.is(x, 0))")).toBe(
+      "xs.every(x => Object.is(x, 0))",
+    );
+  });
+  it("accepts TypeScript expression syntax in atoms (islands are JS/TS)", () => {
+    expect(desugarEquations("(x as unknown as number) ≡ y")).toBe(
+      "Object.is((x as unknown as number), y)",
+    );
+    expect(desugarEquations("xs!.length ≡ n")).toBe("Object.is(xs!.length, n)");
   });
 });
 
@@ -122,11 +117,6 @@ describe("desugarEquations — leaves plain JS alone", () => {
   });
 });
 
-const throws = (input: string, re: RegExp) => {
-  expect(() => desugarEquations(input)).toThrowError(PabstError);
-  expect(() => desugarEquations(input)).toThrowError(re);
-};
-
 describe("desugarEquations — rejections", () => {
   it("bans loose equality == at any depth", () => {
     throws("x == y", /loose equality/);
@@ -166,6 +156,12 @@ describe("desugarEquations — rejections", () => {
     throws("a =≡ b", /fused with an adjacent operator/);
     throws("a ≢= b", /fused with an adjacent operator/);
   });
+  it("rejects an equation glyph fused with an adjacent !", () => {
+    throws("a !≡ b", /fused with an adjacent operator/);
+  });
+  it("accepts a spaced non-null assertion beside a glyph", () => {
+    expect(desugarEquations("a! ≡ b")).toBe("Object.is(a!, b)");
+  });
   it("rejects ≠ with a hint to ≢", () => {
     throws("a ≠ b", /write ≢/);
     throws("a ≠ b", /a ≠ b/);
@@ -187,12 +183,13 @@ describe("desugarEquations — rejections", () => {
   it("rejects ?? regrouped to the atom root by ≡ precedence", () => {
     throws("a ≡ b ?? c", /binds tighter than \?\?/);
   });
-  it("rejects other root-level ?? shapes over an equation, shape-neutrally", () => {
+  it("rejects ?? beside an equation", () => {
     throws("a ?? b ≡ c", /never nullish/);
-    throws("(a ≡ b) ?? c", /never nullish/);
+    throws("(a ≡ b) ?? c", /top level.*Object\.is/s);
   });
-  it("rejects an equation regrouped as the left of ?? at any depth", () => {
-    throws("f(a ≡ b ?? c)", /binds tighter than \?\?/);
+  it("rejects a nested equation even beside ??", () => {
+    throws("f(a ≡ b ?? c)", /top level.*Object\.is/s);
+    throws("f(a ≡ b) ?? c", /top level.*Object\.is/s);
   });
   it("allows a ?? whose left operand is not an equation", () => {
     expect(desugarEquations("a ≡ (b ?? c)")).toBe("Object.is(a, (b ?? c))");
@@ -203,25 +200,42 @@ describe("desugarEquations — rejections", () => {
       "((x = 1) => x)(0) ?? true",
     );
   });
-  it("allows root-level ?? when neither ?? operand is an equation", () => {
-    expect(desugarEquations("f(a ≡ b) ?? c")).toBe("f(Object.is(a, b)) ?? c");
+  it("rejects an equation beside an unparenthesized ternary", () => {
+    throws("a ≡ b ? c : d", /unparenthesized ternary/);
+    throws("a ≢ b ? c : d", /unparenthesized ternary/);
+    throws("flag ? x ≡ 1 : y ≡ 2", /unparenthesized ternary/);
   });
-  it("rejects an equation regrouped into a ternary condition", () => {
-    throws("a ≡ b ? c : d", /became the ternary's condition/);
-    throws("a ≢ b ? c : d", /became the ternary's condition/);
-  });
-  it("allows ternaries that do not trap the equation", () => {
-    expect(desugarEquations("flag ? x ≡ 1 : y ≡ 2")).toBe(
-      "flag ? Object.is(x, 1) : Object.is(y, 2)",
-    );
-    expect(desugarEquations("(a ≡ b) ? c : d")).toBe(
-      "(Object.is(a, b)) ? c : d",
-    );
-    expect(desugarEquations("(x ≢ y) ? c : d")).toBe(
-      "(!Object.is(x, y)) ? c : d",
-    );
+  it("allows a wholly-parenthesized ternary as an equation side", () => {
     expect(desugarEquations("a ≡ (b ? c : d)")).toBe(
       "Object.is(a, (b ? c : d))",
     );
+  });
+  it("rejects an equation beside a depth-0 comma", () => {
+    throws("a, b ≡ x", /comma/);
+    throws("a ≡ b, c", /comma/);
+  });
+  it("rejects an equation beside an unparenthesized arrow function", () => {
+    throws("p ≡ x => f(x)", /arrow/);
+    throws("x => y ≡ b", /arrow/);
+  });
+  it("allows a parenthesized arrow and comma as equation material", () => {
+    expect(desugarEquations("f() ≡ (x => x)(0)")).toBe(
+      "Object.is(f(), (x => x)(0))",
+    );
+    expect(desugarEquations("g(a, b) ≡ x")).toBe("Object.is(g(a, b), x)");
+  });
+  it("allows && and || under a depth-0 ternary (the ternary is the root)", () => {
+    expect(desugarEquations("a && b ? c : d")).toBe("a && b ? c : d");
+    expect(desugarEquations("cond ? a : b && c")).toBe("cond ? a : b && c");
+    expect(desugarEquations("a || b ? c : d")).toBe("a || b ? c : d");
+  });
+  it("rejects && / || at the atom root, even parenthesized", () => {
+    throws("a && b", /use ∧/);
+    throws("a || b", /use ∨/);
+    throws("(a && b)", /use ∧/);
+  });
+  it("rejects a parenthesized equation feeding a ternary (nested position)", () => {
+    throws("(a ≡ b) ? c : d", /top level.*Object\.is/s);
+    throws("(x ≢ y) ? c : d", /top level.*Object\.is/s);
   });
 });

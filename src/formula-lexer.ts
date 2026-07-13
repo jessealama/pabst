@@ -23,11 +23,16 @@ const OPEN = new Set([
   ts.SyntaxKind.OpenParenToken,
   ts.SyntaxKind.OpenBracketToken,
   ts.SyntaxKind.OpenBraceToken,
+  // `…${ opens a substitution: its contents are never at depth 0.
+  ts.SyntaxKind.TemplateHead,
 ]);
 const CLOSE = new Set([
   ts.SyntaxKind.CloseParenToken,
   ts.SyntaxKind.CloseBracketToken,
   ts.SyntaxKind.CloseBraceToken,
+  // }…` ends the last substitution. TemplateMiddle (}…${) closes one and
+  // opens the next — net depth unchanged — so it stays a js token.
+  ts.SyntaxKind.TemplateTail,
 ]);
 
 export interface ScannedToken {
@@ -44,9 +49,9 @@ export interface ScannedToken {
  * continuation after a `${…}` substitution closes (the scanner would
  * otherwise leave template mode and corrupt the middle/tail text).
  */
-export function* scanTokens(text: string): Generator<ScannedToken> {
+export function* scanTokens(text: string, start = 0): Generator<ScannedToken> {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, /*skipTrivia*/ true);
-  scanner.setText(text);
+  scanner.setText(text, start);
   let kind: ts.SyntaxKind;
   let prev: ts.SyntaxKind | null = null;
   let prevText = "";
@@ -113,6 +118,15 @@ export function lexFormula(body: string): FToken[] {
     raw.push({ kind: fkind, text, start, end });
   }
   return mergeArrowFallbacks(mergeSlashFallbacks(raw));
+}
+
+/** The source text spanned by toks (empty when toks is empty). */
+export function sliceText(
+  source: string,
+  toks: readonly { start: number; end: number }[],
+): string {
+  if (toks.length === 0) return "";
+  return source.slice(toks[0]!.start, toks[toks.length - 1]!.end);
 }
 
 /** A `/` can begin a regex unless the previous token ends a value (then it's division). */

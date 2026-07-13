@@ -1,0 +1,117 @@
+(* ==========================================================================
+   Pabst @ensures annotation grammar — the normative surface syntax.
+
+   This file is the single source of truth for what pabst accepts. The
+   implementation mirrors it: each production below corresponds to one
+   parsing function (prefix-parser.ts for the prefix, formula-parser.ts
+   for formulas, equations.ts for atoms).
+
+   TOKENIZATION. The annotation is tokenized as TypeScript (via the TS
+   scanner), so glyphs inside string literals, template text, and regex
+   literals are ordinary characters, never operators:
+       s === "a ∧ b"        is one atom; the ∧ is text.
+   A template substitution `${ … }` nests: tokens inside it cannot be
+   depth-0 formula tokens. "Depth 0" throughout means: not enclosed in
+   ( ) [ ] { } or a template substitution.
+   ========================================================================== *)
+
+property        ::= prefix "," formula
+                    (* the FIRST depth-0 comma after the binder groups
+                       separates prefix from body *)
+
+(* ---- Quantifier prefix --------------------------------------------------- *)
+
+prefix          ::= FORALL binder-group+
+FORALL          ::= "forall" | "∀"
+                    (* ∃ / "exists" is rejected with a teaching error:
+                       property-based testing cannot soundly confirm ∃.
+                       A quantifier token inside the formula body is
+                       rejected as a nested quantifier. *)
+
+binder-group    ::= "(" var-name+ ":" domain constraint? ")"
+                    (* Lean-style grouping: (x y: int) binds x and y,
+                       both with the same domain and constraint *)
+var-name        ::= IDENT                  (* /^[A-Za-z_][A-Za-z0-9_]*$/ *)
+domain          ::= "int" | "nat" | "number" | "boolean" | "string" | "bigint"
+
+constraint      ::= MEMBER guard
+MEMBER          ::= "∈" | "in"
+guard           ::= interval               (* numeric domains only:
+                                              int, nat, number, bigint *)
+                  | regex-literal          (* string domain only *)
+
+regex-literal   ::= ?a JavaScript regex literal: "/" pattern "/" flags?
+                    (* flags: only s and u. Whole-string semantics: the
+                       pattern is auto-anchored ^(?:…)$, and must be one
+                       the string generator supports (checked at parse
+                       time). Beware: a '*/' inside a pattern ends the
+                       enclosing JSDoc comment — write {0,} instead of a
+                       trailing *. *)
+
+interval        ::= open-delim endpoint "," endpoint close-delim
+open-delim      ::= "[" | "("              (* "(" excludes the lower endpoint *)
+close-delim     ::= "]" | ")"              (* ")" excludes the upper endpoint;
+                                              delimiters may be mismatched:
+                                              (0, 1] is a half-open interval *)
+endpoint        ::= NUMERIC-LITERAL | INFINITE
+                    (* literal syntax is per-domain: integer literals for
+                       int/nat, integer with optional n suffix for bigint,
+                       decimal/scientific for number. Signs allowed.
+                       Semantic side conditions (emptiness, ordering) are
+                       enforced by validation, not the grammar. *)
+INFINITE        ::= SIGN? ("∞" | "Infinity")
+                    (* an ∞ endpoint must be exclusive for int/nat/bigint *)
+
+(* ---- Formula ------------------------------------------------------------
+   Precedence is encoded in the production chain, loosest binding first:
+   ↔  <  →  <  ∨  <  ∧  <  ¬                                              *)
+
+formula         ::= equivalence
+equivalence     ::= implication (IFF implication)?
+                    (* non-associative: a ↔ b ↔ c is an error *)
+implication     ::= disjunction (IMPLIES disjunction)*
+                    (* a → b → c: every segment but the last is an
+                       antecedent. At the FORMULA ROOT, a failing
+                       antecedent discards the sample (a precondition);
+                       a parenthesized → is ordinary material
+                       implication ¬P ∨ Q. *)
+disjunction     ::= conjunction (OR conjunction)*       (* left-associative *)
+conjunction     ::= negation (AND negation)*            (* left-associative *)
+negation        ::= NOT negation | primary
+primary         ::= "(" formula ")" | atom
+                    (* a leading "(" whose match is the operand's final
+                       token is logical grouping; any other parenthesis
+                       belongs to the JavaScript island: (x + 1) * 2 > 0
+                       is one atom *)
+
+NOT             ::= "¬"                    (* glyph-only *)
+AND             ::= "∧" | "/\"
+OR              ::= "∨" | "\/"
+IMPLIES         ::= "→" | "->" | "==>"
+IFF             ::= "↔" | "<->" | "iff"
+
+(* ---- Atoms: JavaScript/TypeScript islands ------------------------------- *)
+
+atom            ::= island (EQUATION island)?
+EQUATION        ::= "≡" | "≢"
+                    (* glyph-only. A ≡ B is Object.is(A, B); A ≢ B is
+                       !Object.is(A, B). Available ONLY at an atom's top
+                       level (depth 0): in nested positions — callbacks,
+                       call arguments, template substitutions — call
+                       Object.is directly. Non-associative: a ≡ b ≡ c is
+                       an error; write a ≡ b ∧ b ≡ c. *)
+island          ::= ?an opaque JavaScript/TypeScript expression?
+                    (* TypeScript expression syntax — `as`, `satisfies`,
+                       generic call arguments, non-null `!` — is part of
+                       the island language: generated specs are .ts *)
+
+(* Side conditions on atoms (context-sensitive; enforced by validation):
+   - Atoms must evaluate to genuine booleans at runtime (__bool check).
+   - JS && / || / prefix-! may not surface at an atom's top level — use
+     the glyphs ∧ ∨ ¬. They remain legal inside a leaf (callbacks etc).
+   - Loose == / != are rejected (use ≡/≢ or ===/!==); assignments (= and
+     compound forms) are rejected anywhere in an atom, except parameter
+     default initializers; ≠ is rejected with a hint to write ≢.
+   - An equation may not sit beside a depth-0 ??, ?:, ===/!==, comma,
+     or => — parenthesize the intended grouping.
+   - Every free identifier must be exported from the annotated module. *)

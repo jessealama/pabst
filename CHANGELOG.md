@@ -4,6 +4,27 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.11.0] - 2026-07-13
+
+### Changed
+
+- **Breaking:** the equation glyphs `≡`/`≢` are now available only at an
+  atom's top level, making the equation a real grammar production. In
+  nested positions — callbacks, call arguments, template substitutions —
+  call `Object.is(A, B)` (or `!Object.is(A, B)`) directly; a nested glyph
+  is rejected with exactly that hint. Relatedly, a parenthesized equation
+  feeding `??` or `?:` (e.g. `(a ≡ b) ? c : d`) is now a nested position:
+  use `Object.is` there too. An equation also may not sit beside a
+  depth-0 comma or unparenthesized arrow function (e.g. `a, b ≡ x` or
+  `p ≡ x => f(x)`): parenthesize the intended operand.
+
+### Added
+
+- The annotation surface syntax now has a normative grammar:
+  [`docs/grammar.ebnf`](docs/grammar.ebnf). The parser is a token-based
+  recursive descent mirroring it production-for-production, replacing the
+  character-level scanning of the binder prefix.
+
 ## [0.10.0]
 
 ### Added

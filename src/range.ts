@@ -14,41 +14,8 @@ export function isNumericDomain(d: Domain): boolean {
 }
 
 /** Interval delimiters may be deliberately mismatched — (0, 1] is legal —
- * so the FIRST of ']' or ')' always closes an interval. This regex is the
- * single definition of that rule; parseRange and scanIntervalExtent both
- * scan with it. */
+ * so the FIRST of ']' or ')' always closes an interval. */
 const CLOSE_DELIM = /[\])]/;
-
-/** The index just past the membership token (∈, or the word 'in') starting
- * at `i`, or -1 if none starts there. The single definition of the
- * membership spelling, shared by the binder-group scanner and splitter. */
-export function membershipEnd(text: string, i: number): number {
-  if (text[i] === "∈") return i + 1;
-  if (
-    text.startsWith("in", i) &&
-    !/[A-Za-z0-9_]/.test(text[i - 1] ?? " ") &&
-    !/[A-Za-z0-9_]/.test(text[i + 2] ?? " ")
-  ) {
-    return i + 2;
-  }
-  return -1;
-}
-
-/** Where an interval starting at `at` ends: the index just past its
- * closing delimiter, or -1 when no interval can start at `at` — the
- * character there is not '[' or '(', no closing delimiter follows, or the
- * delimited text cannot be a two-endpoint interval (a second comma, or a
- * ':', means the delimiter swallowed neighboring binder text: typically a
- * forgotten ']'). On -1 the caller's fallback path reaches parseRange,
- * whose scan of the same text yields the precise complaint. */
-export function scanIntervalExtent(text: string, at: number): number {
-  if (text[at] !== "[" && text[at] !== "(") return -1;
-  const close = text.slice(at + 1).search(CLOSE_DELIM);
-  if (close === -1) return -1;
-  const interior = text.slice(at + 1, at + 1 + close);
-  if (interior.includes(":") || interior.split(",").length !== 2) return -1;
-  return at + close + 2;
-}
 
 /** Parse and validate an interval constraint like "[1, 30]" or "(0, 1]".
  * A round bracket excludes its endpoint. */
