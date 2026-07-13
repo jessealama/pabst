@@ -18,6 +18,8 @@ import {
   qualifiedName,
 } from "../src/qualified-name.js";
 import * as runtime from "../src/runtime.js";
+import type { z } from "zod";
+import type { IssueSchema } from "../src/issue-schema.js";
 
 describe("contract pins", () => {
   it("pins the literal spellings of the contract constants", () => {
@@ -86,5 +88,12 @@ describe("contract pins", () => {
           QUALIFIED_NAME_PATTERN.test(qualifiedName(fn, cls, isStatic)),
       ),
     );
+  });
+
+  it("every schema-valid issue is assignable to Issue (compile-time)", () => {
+    // One-way guard: the strict zod union may only ever narrow the loose
+    // Issue interface, never diverge from it. Fails to COMPILE on drift.
+    const check: Issue = null as unknown as z.infer<typeof IssueSchema>;
+    expect(check).toBeNull();
   });
 });

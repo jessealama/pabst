@@ -48,7 +48,8 @@
   "license": "MIT",
   "dependencies": {
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@fast-check/vitest": "^0.4.1",
@@ -56,12 +57,12 @@
   },
   "devDependencies": {
     "@fast-check/vitest": "^0.4.1",
-    "fast-check": "^4.8.0",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "^4.1.9",
     "ajv": "^8.20.0",
+    "fast-check": "^4.8.0",
     "prettier": "3.9.5"
   }
 }
