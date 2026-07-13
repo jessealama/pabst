@@ -4,6 +4,19 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.12.1] - 2026-07-13
+
+### Fixed
+
+- `pabst test` runs only the tests it just generated, so stale files in
+  `.pabst/` from earlier invocations no longer pollute the envelope.
+
+## [0.12.0] - 2026-07-13
+
+### Changed
+
+- The npm package is renamed to `pabst-checker`; the bin stays `pabst`.
+
 ## [0.11.0] - 2026-07-13
 
 ### Changed
