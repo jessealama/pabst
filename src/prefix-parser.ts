@@ -1,7 +1,7 @@
 import { isDomain } from "./domains.js";
 import { PabstError } from "./errors.js";
 import type { Binder } from "./ir.js";
-import { parseRange } from "./range.js";
+import { membershipEnd, parseRange, scanIntervalExtent } from "./range.js";
 
 export interface ParsedPrefix {
   binders: Binder[];
@@ -9,15 +9,6 @@ export interface ParsedPrefix {
 }
 
 const FORALL = /^\s*(?:forall|∀)\s*/;
-
-const MEMBERSHIP = /∈|\bin\b/;
-
-// An attempted open interval puts '(' right after the membership token in
-// domain position (': number ∈ ('); requiring that context keeps the hint
-// away from unrelated 'in (' text in the property body.
-const OPEN_INTERVAL_ATTEMPT = new RegExp(
-  `:\\s*\\w+\\s*(?:${MEMBERSHIP.source})\\s*\\(`,
-);
 
 export function parsePrefix(formula: string): ParsedPrefix {
   if (/^\s*(?:∃|exists\b)/.test(formula)) {
@@ -42,7 +33,12 @@ export function parsePrefix(formula: string): ParsedPrefix {
     const start = i;
     let depth = 0;
     let j = i;
-    for (; j < formula.length; j++) {
+    while (j < formula.length) {
+      const atomEnd = intervalAtomEnd(formula, j);
+      if (atomEnd !== -1) {
+        j = atomEnd;
+        continue;
+      }
       const c = formula[j]!;
       if (c === "(") depth++;
       else if (c === ")") {
@@ -52,15 +48,11 @@ export function parsePrefix(formula: string): ParsedPrefix {
           break;
         }
       }
+      j++;
     }
     if (depth !== 0) {
-      const rest = formula.slice(start);
-      const openInterval = OPEN_INTERVAL_ATTEMPT.test(rest)
-        ? " (open/half-open intervals like (0, 1] are not supported; " +
-          "use closed bounds [lo, hi])"
-        : "";
       throw new PabstError(
-        `unbalanced parentheses in binder group: ${rest}${openInterval}`,
+        `unbalanced parentheses in binder group: ${formula.slice(start)}`,
       );
     }
     binders.push(...parseBinderGroup(formula.slice(start + 1, j - 1)));
@@ -85,6 +77,21 @@ export function parsePrefix(formula: string): ParsedPrefix {
   return { binders, body };
 }
 
+/** Interval delimiters may be deliberately mismatched — (0, 1] is a legal
+ * half-open interval — so the group scanner consumes '∈/in ⟨( or [⟩ …
+ * ⟨) or ]⟩' as one atom whose brackets never take part in paren counting.
+ * Returns the index just past the interval's closing delimiter, or -1 when
+ * no interval starts at j — then the characters take part in paren
+ * counting as usual, and whatever text ends up after the membership token
+ * reaches parseRange for the precise complaint. */
+function intervalAtomEnd(formula: string, j: number): number {
+  const k = membershipEnd(formula, j);
+  if (k === -1) return -1;
+  let d = k;
+  while (d < formula.length && /\s/.test(formula[d]!)) d++;
+  return scanIntervalExtent(formula, d);
+}
+
 function parseBinderGroup(group: string): Binder[] {
   const colon = group.indexOf(":");
   if (colon === -1)
@@ -95,10 +102,13 @@ function parseBinderGroup(group: string): Binder[] {
   const domainPart = group.slice(colon + 1).trim();
   let domainName = domainPart;
   let rangeText: string | undefined;
-  const mem = MEMBERSHIP.exec(domainPart);
-  if (mem) {
-    domainName = domainPart.slice(0, mem.index).trim();
-    rangeText = domainPart.slice(mem.index + mem[0].length).trim();
+  for (let j = 0; j < domainPart.length; j++) {
+    const end = membershipEnd(domainPart, j);
+    if (end !== -1) {
+      domainName = domainPart.slice(0, j).trim();
+      rangeText = domainPart.slice(end).trim();
+      break;
+    }
   }
   if (!isDomain(domainName)) {
     throw new PabstError(

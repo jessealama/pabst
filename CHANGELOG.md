@@ -4,6 +4,29 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.9.0]
+
+### Added
+
+- Binder intervals may be open or half-open — `(0, 1]`, `[0, 30)` — and
+  endpoints may be unbounded: `∞`/`-∞` (ASCII: `Infinity`). So
+  `(x: number ∈ (0, ∞))` expresses "strictly positive number", excluding
+  `0`, `-0`, `NaN`, and `Infinity`; a closed ∞ endpoint (`[0, ∞]`) allows
+  `Infinity` itself to be generated. Open `int`/`nat`/`bigint` bounds
+  adjust the inclusive bound by ±1, and an ∞ endpoint there must be open.
+  For `int`/`nat` an unbounded side means the safe integer limit
+  (±2^53 − 1) — both bounds are always emitted, since fast-check's
+  implicit 32-bit defaults reject far-out one-sided bounds — and a finite
+  endpoint beyond that limit clamps to it with a stderr warning (an error
+  only when nothing satisfiable remains). A `nat` interval reaching below
+  0 clamps to 0, so `(-2, 5]` and `(-∞, 5]` denote the same naturals.
+  `number` intervals follow fast-check's double ordering, in which every
+  double is distinct: `-0` sits below `0` (`(-0, 0]` is the singleton
+  `{0}`, `[0, -0]` is empty) and an excluded bound removes exactly one
+  adjacent double — so `[-1, 0)` can generate `-0`, which `== 0`, and
+  `(0, 5e-324)` is rejected as empty. A bounded `number` never generates
+  `NaN`. (#29)
+
 ## [0.8.0]
 
 ### Added
