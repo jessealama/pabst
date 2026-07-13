@@ -162,6 +162,19 @@ spelling of an equation is a plain `Object.is` call).
   exactly one adjacent double — so `[-1, 0)` can generate `-0` (which
   `== 0`), and `(-0, 0]` is the singleton `{0}`. A bounded `number` never
   generates `NaN`.
+- **Regex guards** constrain a string binder to strings matching a JS
+  regular expression: `forall (s: string ∈ /[a-z]+/)` (ASCII fallback:
+  `in`). Membership means the _whole_ string matches — pabst anchors the
+  pattern for you (lowering to `fc.stringMatching(/^(?:[a-z]+)$/)`), so
+  `/[a-z]+/` never generates `"3fk!"`. Flags `s` and `u` are allowed (`u`
+  enables `\p{...}` escapes); everything else is rejected — `m` because it
+  would reintroduce substring matching, `i`/`v` because fast-check's
+  generator lacks them, `g`/`y`/`d` because they don't affect generation.
+  Patterns outside fast-check's supported subset (lookarounds,
+  backreferences, `\b`) are compile-time errors. Careful inside JSDoc: a
+  `*/` in a pattern (e.g. the trailing star in a pattern matching
+  zero-or-more) ends the comment early — write `{0,}` instead of a
+  trailing `*`, or wrap it in `(?:...)`.
 - **Connectives** (tightest→loosest): `¬` > `∧` > `∨` > `→` > `↔`.
   Fallbacks: `∧`=`/\`, `∨`=`\/`, `→`=`->`/`==>`, `↔`=`<->`/`iff`.
   Negation `¬` is glyph-only.

@@ -4,6 +4,22 @@ Notable changes to pabst. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [semver](https://semver.org/).
 
+## [0.10.0]
+
+### Added
+
+- Regex guards for string binders: `forall (s: string ∈ /[a-z]+/)`
+  generates only strings matching the pattern, lowered to fast-check's
+  `stringMatching`. Membership is whole-string: pabst anchors the pattern
+  (`^(?:...)$`), so an unanchored guard never generates padded values.
+  Flags `s` and `u` are allowed; `m` (which would silently reintroduce
+  substring semantics), the generation-irrelevant `g`/`y`/`d`, and the
+  fast-check-unsupported `i`/`v` are compile-time errors, as are patterns
+  outside fast-check's subset (lookarounds, backreferences, `\b`) — pabst
+  validates by probing its bundled fast-check at generation time. A `*/`
+  inside a pattern ends the enclosing JSDoc comment early; the resulting
+  parse error hints to write `{0,}` instead of a trailing `*`. (#30)
+
 ## [0.9.0]
 
 ### Added
