@@ -13,10 +13,19 @@ export interface Range {
   maxOpen?: boolean;
 }
 
+/** Regex guard on a string binder. Source and flags are the user's literal
+ * text, kept verbatim; lowering anchors the source (see anchoredSource in
+ * regex-guard.ts) so the guard means whole-string membership. */
+export interface StringPattern {
+  source: string;
+  flags: string;
+}
+
 export interface Binder {
   varName: string;
   domain: Domain;
   range?: Range;
+  pattern?: StringPattern;
 }
 
 export interface PropertySpec {
