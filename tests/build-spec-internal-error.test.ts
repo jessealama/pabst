@@ -16,7 +16,7 @@ vi.mock("../src/lower.js", () => ({
 
 describe("build-spec internal errors", () => {
   useTempProject("pabst-buildspec-internal-", {
-    "fine.ts": `/** @ensures{pos} forall (n: nat), fine(n) >= 0 */\nexport function fine(n: number): number { return n; }\n`,
+    "fine.ts": `/** @ensures{pos} forall (n: nat) { fine(n) >= 0 } */\nexport function fine(n: number): number { return n; }\n`,
   });
 
   it("a non-PabstError thrown mid-annotation escapes main() unwrapped", () => {

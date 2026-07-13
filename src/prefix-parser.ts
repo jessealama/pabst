@@ -45,14 +45,27 @@ export function parsePrefix(formula: string): ParsedPrefix {
       `expected at least one binder group '(x: domain)' after forall`,
     );
   }
-  const comma = toks[i];
-  if (!comma || comma.text !== ",") {
-    const at = comma?.start ?? formula.length;
+  const open = toks[i];
+  if (open && open.text === ",") {
     throw new PabstError(
-      `expected ',' separating binders from body, got: ${formula.slice(at, at + 60)}`,
+      `since pabst 0.13.0 the property body goes in braces instead of after ` +
+        `a comma: forall (x: int) { ... }`,
     );
   }
-  const body = formula.slice(comma.end).trim();
+  if (!open || open.text !== "{") {
+    const at = open?.start ?? formula.length;
+    throw new PabstError(
+      `expected '{' to open the property body, got: ${formula.slice(at, at + 60)}`,
+    );
+  }
+  const close = braceExtent(toks, i, formula);
+  const after = toks[close + 1];
+  if (after) {
+    throw new PabstError(
+      `unexpected text after the property body's closing '}': ${formula.slice(after.start, after.start + 60)}`,
+    );
+  }
+  const body = formula.slice(open.end, toks[close]!.start).trim();
   if (body.length === 0) throw new PabstError(`property body is empty`);
   return { binders, body };
 }
@@ -131,6 +144,30 @@ function groupExtent(
     : "";
   throw new PabstError(
     `unbalanced parentheses in binder group: ${formula.slice(toks[open]!.start)}${hint}`,
+  );
+}
+
+/** Index of the '}' matching the '{' at toks[open]. Only genuine brace
+ * tokens take part in the count: scanTokens packages string, regex, and
+ * template text into single tokens and rescans a substitution-closing '}'
+ * into a TemplateMiddle/TemplateTail, so every OpenBraceToken in the
+ * stream has a real CloseBraceToken partner. */
+function braceExtent(
+  toks: ScannedToken[],
+  open: number,
+  formula: string,
+): number {
+  let depth = 0;
+  for (let j = open; j < toks.length; j++) {
+    const kind = toks[j]!.kind;
+    if (kind === ts.SyntaxKind.OpenBraceToken) depth++;
+    else if (kind === ts.SyntaxKind.CloseBraceToken) {
+      depth--;
+      if (depth === 0) return j;
+    }
+  }
+  throw new PabstError(
+    `unbalanced braces in property body: ${formula.slice(toks[open]!.start)}`,
   );
 }
 

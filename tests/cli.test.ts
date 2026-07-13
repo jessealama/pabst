@@ -8,8 +8,8 @@ const repoRoot = process.cwd();
 
 describe("cli main", () => {
   const dir = useTempProject("pabst-cli-", {
-    "baz.ts": `/** @ensures{pos} forall (n: nat), baz(n) >= 0 */\nexport function baz(n: number): number { return n; }\n`,
-    "shadow.d.ts": `/** @ensures{pos2} forall (n: nat), baz(n) >= 0 */\nexport declare function baz(n: number): number;\n`,
+    "baz.ts": `/** @ensures{pos} forall (n: nat) { baz(n) >= 0 } */\nexport function baz(n: number): number { return n; }\n`,
+    "shadow.d.ts": `/** @ensures{pos2} forall (n: nat) { baz(n) >= 0 } */\nexport declare function baz(n: number): number;\n`,
   });
 
   it("gen writes generated files and returns 0", () => {
@@ -94,7 +94,7 @@ describe("cli main", () => {
 describe("cli zero-argument discovery", () => {
   describe("with a src/ directory", () => {
     useTempProject("pabst-cli-zerosrc-", {
-      "src/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "src/qux.ts": `/** @ensures{pos} forall (n: nat) { qux(n) >= 0 } */\nexport function qux(n: number): number { return n; }\n`,
       "src/types.d.ts": `export declare function qux(n: number): number;\n`,
     });
 
@@ -111,7 +111,7 @@ describe("cli zero-argument discovery", () => {
   describe("with a tsconfig.json", () => {
     useTempProject("pabst-cli-zerotsc-", {
       "tsconfig.json": JSON.stringify({ include: ["lib"] }),
-      "lib/qux.ts": `/** @ensures{pos} forall (n: nat), qux(n) >= 0 */\nexport function qux(n: number): number { return n; }\n`,
+      "lib/qux.ts": `/** @ensures{pos} forall (n: nat) { qux(n) >= 0 } */\nexport function qux(n: number): number { return n; }\n`,
       "src/decoy.ts": `export function decoy(): number { return 1; }\n`,
     });
 
@@ -174,7 +174,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "an unexported-symbol reference (free-idents)",
     file: "unexported.ts",
-    source: `/** @ensures{agrees} forall (n: nat), unexported(n) === helper(n) */\nexport function unexported(n: number): number { return n; }\nfunction helper(n: number): number { return n; }\n`,
+    source: `/** @ensures{agrees} forall (n: nat) { unexported(n) === helper(n) } */\nexport function unexported(n: number): number { return n; }\nfunction helper(n: number): number { return n; }\n`,
     wrapped: true,
     property: "agrees",
     expected: ["'helper'", "not exported"],
@@ -190,7 +190,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "an unsupported domain (prefix-parser)",
     file: "baddomain.ts",
-    source: `/** @ensures{rounds} forall (x: float), rounder(x) >= 0 */\nexport function rounder(x: number): number { return x; }\n`,
+    source: `/** @ensures{rounds} forall (x: float) { rounder(x) >= 0 } */\nexport function rounder(x: number): number { return x; }\n`,
     wrapped: true,
     property: "rounds",
     expected: ["unknown generation domain 'float'"],
@@ -198,7 +198,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "an existential inside the body (formula-lexer)",
     file: "bodyexists.ts",
-    source: `/** @ensures{someInBody} forall (n: nat), inBody(n) > 0 ∧ exists m, inBody(m) === 0 */\nexport function inBody(n: number): number { return n; }\n`,
+    source: `/** @ensures{someInBody} forall (n: nat) { inBody(n) > 0 ∧ exists m, inBody(m) === 0 } */\nexport function inBody(n: number): number { return n; }\n`,
     wrapped: true,
     property: "someInBody",
     expected: ["existential quantifiers"],
@@ -206,7 +206,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "a nested forall inside the body (formula-lexer)",
     file: "nestedforall.ts",
-    source: `/** @ensures{deep} forall (n: nat), forall (m: nat), nested(n) >= 0 */\nexport function nested(n: number): number { return n; }\n`,
+    source: `/** @ensures{deep} forall (n: nat) { forall (m: nat) { nested(n) >= 0 } } */\nexport function nested(n: number): number { return n; }\n`,
     wrapped: true,
     property: "deep",
     expected: ["nested quantifiers"],
@@ -214,7 +214,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "JS && at the property's top level (formula-parser)",
     file: "jsconj.ts",
-    source: `/** @ensures{conj} forall (n: nat), jsconj(n) >= 0 && jsconj(n) >= 0 */\nexport function jsconj(n: number): number { return n; }\n`,
+    source: `/** @ensures{conj} forall (n: nat) { jsconj(n) >= 0 && jsconj(n) >= 0 } */\nexport function jsconj(n: number): number { return n; }\n`,
     wrapped: true,
     property: "conj",
     expected: ["use ∧ for conjunction"],
@@ -222,7 +222,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "a duplicate property name (extract)",
     file: "dup.ts",
-    source: `/**\n * @ensures{same} forall (n: nat), dup(n) >= 0\n * @ensures{same} forall (n: nat), dup(n) >= 0\n */\nexport function dup(n: number): number { return n; }\n`,
+    source: `/**\n * @ensures{same} forall (n: nat) { dup(n) >= 0 }\n * @ensures{same} forall (n: nat) { dup(n) >= 0 }\n */\nexport function dup(n: number): number { return n; }\n`,
     wrapped: false,
     property: "same",
     expected: ["duplicate property name 'same'", "dup.ts"],
@@ -230,7 +230,7 @@ const COMPILE_ERROR_CASES: CompileErrorCase[] = [
   {
     name: "an @ensures on an unexported class (extract)",
     file: "hidden.ts",
-    source: `class Hidden {\n  /** @ensures{h} forall (n: nat), n >= 0 */\n  m(n: number): number { return n; }\n}\n`,
+    source: `class Hidden {\n  /** @ensures{h} forall (n: nat) { n >= 0 } */\n  m(n: number): number { return n; }\n}\n`,
     wrapped: false,
     property: "h",
     expected: ["class 'Hidden'", "not exported", "hidden.ts"],
@@ -281,12 +281,12 @@ describe("cli test command (README usage claims)", () => {
     fs.mkdirSync(workDir, { recursive: true });
     fs.writeFileSync(
       path.join(workDir, "good.ts"),
-      `/** @ensures{nonneg} forall (n: nat), good(n) >= 0 */\nexport function good(n: number): number { return n; }\n`,
+      `/** @ensures{nonneg} forall (n: nat) { good(n) >= 0 } */\nexport function good(n: number): number { return n; }\n`,
       "utf8",
     );
     fs.writeFileSync(
       path.join(workDir, "bad.ts"),
-      `/** @ensures{negative} forall (n: nat), bad(n) < 0 */\nexport function bad(n: number): number { return n; }\n`,
+      `/** @ensures{negative} forall (n: nat) { bad(n) < 0 } */\nexport function bad(n: number): number { return n; }\n`,
       "utf8",
     );
     fs.writeFileSync(

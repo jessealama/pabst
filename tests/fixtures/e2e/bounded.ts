@@ -1,7 +1,7 @@
 /** Every generated value must land inside the declared interval: the body
  * re-checks the bounds, so any out-of-range value falsifies the property.
  *
- * @ensures{staysInRange} forall (n: int ∈ [1, 30]), intInRange(n)
+ * @ensures{staysInRange} forall (n: int ∈ [1, 30]) { intInRange(n) }
  */
 export function intInRange(n: number): boolean {
   return n >= 1 && n <= 30;
@@ -10,7 +10,7 @@ export function intInRange(n: number): boolean {
 /** NaN fails both comparisons, so this also proves the generated arbitrary
  * carries noNaN: true.
  *
- * @ensures{unitInterval} forall (x: number ∈ [0, 1]), numberInUnit(x)
+ * @ensures{unitInterval} forall (x: number ∈ [0, 1]) { numberInUnit(x) }
  */
 export function numberInUnit(x: number): boolean {
   return x >= 0 && x <= 1;
@@ -18,7 +18,7 @@ export function numberInUnit(x: number): boolean {
 
 /** Exercises the ASCII `in` fallback and n-suffixed endpoints end-to-end.
  *
- * @ensures{bigintBounds} forall (b: bigint in [0n, 100n]), bigintInRange(b)
+ * @ensures{bigintBounds} forall (b: bigint in [0n, 100n]) { bigintInRange(b) }
  */
 export function bigintInRange(b: bigint): boolean {
   return b >= 0n && b <= 100n;
@@ -28,7 +28,7 @@ export function bigintInRange(b: bigint): boolean {
  * orders -0 below 0, so excluding the lower bound 0 removes both zeros),
  * NaN, and Infinity.
  *
- * @ensures{strictlyPositive} forall (x: number ∈ (0, ∞)), numberStrictlyPositive(x)
+ * @ensures{strictlyPositive} forall (x: number ∈ (0, ∞)) { numberStrictlyPositive(x) }
  */
 export function numberStrictlyPositive(x: number): boolean {
   return x > 0 && Number.isFinite(x) && !Object.is(x, -0);
@@ -36,7 +36,7 @@ export function numberStrictlyPositive(x: number): boolean {
 
 /** Half-open on the right: 10 itself must never be generated.
  *
- * @ensures{halfOpenInt} forall (n: int ∈ [0, 10)), intInHalfOpen(n)
+ * @ensures{halfOpenInt} forall (n: int ∈ [0, 10)) { intInHalfOpen(n) }
  */
 export function intInHalfOpen(n: number): boolean {
   return n >= 0 && n < 10;
@@ -44,7 +44,7 @@ export function intInHalfOpen(n: number): boolean {
 
 /** Open bigint bounds become ±1-adjusted inclusive bounds.
  *
- * @ensures{bigintOpen} forall (b: bigint ∈ (0n, 100n]), bigintStrictlyPositive(b)
+ * @ensures{bigintOpen} forall (b: bigint ∈ (0n, 100n]) { bigintStrictlyPositive(b) }
  */
 export function bigintStrictlyPositive(b: bigint): boolean {
   return b > 0n && b <= 100n;
@@ -53,7 +53,7 @@ export function bigintStrictlyPositive(b: bigint): boolean {
 /** (0, ∞) over nat lowers to fc.integer({ min: 1, max: 2^53-1 }): never 0,
  * never negative.
  *
- * @ensures{positiveNat} forall (k: nat ∈ (0, ∞)), natStrictlyPositive(k)
+ * @ensures{positiveNat} forall (k: nat ∈ (0, ∞)) { natStrictlyPositive(k) }
  */
 export function natStrictlyPositive(k: number): boolean {
   return Number.isInteger(k) && k >= 1;
@@ -64,7 +64,7 @@ export function natStrictlyPositive(k: number): boolean {
  * integer range), or fc.integer would reject min > its default max the
  * moment the generated test runs.
  *
- * @ensures{farOutOneSided} forall (n: int ∈ [5000000000, ∞)), intBeyondInt32(n)
+ * @ensures{farOutOneSided} forall (n: int ∈ [5000000000, ∞)) { intBeyondInt32(n) }
  */
 export function intBeyondInt32(n: number): boolean {
   return Number.isSafeInteger(n) && n >= 5000000000;
@@ -74,7 +74,7 @@ export function intBeyondInt32(n: number): boolean {
  * generatable value is -0 (which == 0): the body must accept -0 while
  * everything else stays strictly negative.
  *
- * @ensures{halfOpenAtZero} forall (x: number ∈ [-1, 0)), numberBelowZero(x)
+ * @ensures{halfOpenAtZero} forall (x: number ∈ [-1, 0)) { numberBelowZero(x) }
  */
 export function numberBelowZero(x: number): boolean {
   return x >= -1 && (x < 0 || Object.is(x, -0));
@@ -83,7 +83,7 @@ export function numberBelowZero(x: number): boolean {
 /** A finite negative nat lower bound clamps to 0, exactly like (-∞: the
  * open bound (-2 adjusts to -1, which floors at 0.
  *
- * @ensures{clampedNat} forall (k: nat ∈ (-2, 5]), natInClamped(k)
+ * @ensures{clampedNat} forall (k: nat ∈ (-2, 5]) { natInClamped(k) }
  */
 export function natInClamped(k: number): boolean {
   return Number.isInteger(k) && k >= 0 && k <= 5;

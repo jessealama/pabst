@@ -10,8 +10,9 @@ non-zero provided the second argument is an integer. Can you spot the error?
 
 ```ts
 /**
- * @ensures{nonzero} forall (x: bigint) (y: number),
+ * @ensures{nonzero} forall (x: bigint) (y: number) {
  *   Number.isInteger(y) ==> foo(x, y) !== 0
+ * }
  */
 export function foo(x: bigint, y: number): number {
   return Number(x % 2n) + (y % 2) + 1;
@@ -144,14 +145,16 @@ spelling of an equation is a plain `Object.is` call).
 
 ```ts
 /**
- * @ensures{guarded} forall (x: int),
+ * @ensures{guarded} forall (x: int) {
  *   isPrime(x) ∧ x > 2 → isOdd(x)
+ * }
  */
 ```
 
-- **Quantifier:** `forall` / `∀`, one-or-more binder groups, then a comma, then
-  the body. Lean-style grouping `(x y: int)` is supported. Existential `∃` /
-  `exists` is intentionally rejected (PBT cannot soundly confirm existence).
+- **Quantifier:** `forall` / `∀`, one-or-more binder groups, then the body
+  in braces: `forall (x: int) { ... }`. Lean-style grouping `(x y: int)` is
+  supported. Existential `∃` / `exists` is intentionally rejected (PBT
+  cannot soundly confirm existence).
 - **Domains:** `int`, `nat`, `number`, `boolean`, `string`, `bigint`.
   A numeric domain (`int`, `nat`, `number`, `bigint`) may be constrained to
   an interval: `forall (x: int ∈ [1, 30])` (ASCII fallback: `in`). Each

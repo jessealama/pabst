@@ -13,7 +13,7 @@ vi.mock("../src/codegen.js", () => ({
 
 describe("cli internal errors", () => {
   useTempProject("pabst-cli-internal-", {
-    "fine.ts": `/** @ensures{pos} forall (n: nat), fine(n) >= 0 */\nexport function fine(n: number): number { return n; }\n`,
+    "fine.ts": `/** @ensures{pos} forall (n: nat) { fine(n) >= 0 } */\nexport function fine(n: number): number { return n; }\n`,
   });
 
   it("a non-PabstError from compilation escapes main() instead of exiting 2", () => {
