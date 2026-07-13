@@ -1,4 +1,11 @@
 import * as path from "node:path";
+import {
+  BOOL_ALIAS,
+  BOOL_EXPORT,
+  REPORT_ALIAS,
+  REPORT_EXPORT,
+  RUNTIME_SPECIFIER,
+} from "./contract.js";
 import { arbitraryFor } from "./domains.js";
 import { qualifiedName } from "./qualified-name.js";
 import type { PropertySpec } from "./ir.js";
@@ -22,7 +29,7 @@ export function emit(
   lines.push(`import { describe } from "vitest";`);
   lines.push(`import { test, fc } from "@fast-check/vitest";`);
   lines.push(
-    `import { report as __pabstReport, bool as __bool } from "pabst-checker/runtime";`,
+    `import { ${REPORT_EXPORT} as ${REPORT_ALIAS}, ${BOOL_EXPORT} as ${BOOL_ALIAS} } from "${RUNTIME_SPECIFIER}";`,
   );
   lines.push(`import * as __M from "${rel}";`);
   if (allExports.length > 0)
@@ -82,7 +89,7 @@ function emitProp(
   const fn = JSON.stringify(
     qualifiedName(s.functionName, s.className, s.isStatic),
   );
-  const reporter = `(d) => __pabstReport(${file}, ${fn}, ${name}, [${varNames}], d)`;
+  const reporter = `(d) => ${REPORT_ALIAS}(${file}, ${fn}, ${name}, [${varNames}], d)`;
   const params = `{ seed: ${seed}, reporter: ${reporter} }`;
   const out: string[] = [];
   out.push(`${indent}test.prop([${arbs}], ${params})(${name}, (${vars}) => {`);

@@ -1,5 +1,9 @@
 import { stringify } from "fast-check";
-import { ISSUE_SENTINEL, type Issue } from "./contract.js";
+import {
+  encodeIssue,
+  FC_PROPERTY_FAILED_MESSAGE,
+  type Issue,
+} from "./contract.js";
 
 /**
  * The subset of fast-check's RunDetails that the reporter consumes. The
@@ -23,7 +27,7 @@ function encodeValue(v: unknown): unknown {
 }
 
 function throwIssue(issue: Issue): never {
-  throw new Error(ISSUE_SENTINEL + JSON.stringify(issue));
+  throw new Error(encodeIssue(issue));
 }
 
 /**
@@ -77,7 +81,7 @@ export function report(
   });
 
   const err = d.errorInstance;
-  const threw = !!err && err.message !== "Property failed by returning false";
+  const threw = !!err && err.message !== FC_PROPERTY_FAILED_MESSAGE;
   if (threw) {
     throwIssue({ ...base, kind: "threw", counterexample, error: err!.message });
   }
