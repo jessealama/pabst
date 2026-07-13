@@ -25,6 +25,7 @@ const parseRoundTripSrc = path.join(
 );
 const safeSqrtSrc = path.join(root, "tests/fixtures/e2e/safe-sqrt.ts");
 const boundedSrc = path.join(root, "tests/fixtures/e2e/bounded.ts");
+const regexGuardSrc = path.join(root, "tests/fixtures/e2e/regex-guard.ts");
 const equationPassSrc = path.join(root, "tests/fixtures/e2e/equation-pass.ts");
 const equationFailSrc = path.join(root, "tests/fixtures/e2e/equation-fail.ts");
 const exhaustedSrc = path.join(
@@ -270,6 +271,22 @@ describe("end-to-end", () => {
     () => {
       const [r] = generate([boundedSrc]);
       expect(r).toBeDefined();
+      const env = run(r!.outFile);
+      expect(env.failed).toBe(0);
+      expect(env.issues).toEqual([]);
+    },
+  );
+
+  it(
+    "regex-guarded string binders only generate matching values",
+    { timeout: 30000 },
+    () => {
+      const [r] = generate([regexGuardSrc]);
+      expect(r).toBeDefined();
+      // Pin the emitted arbitraries: anchored, non-capturing, flags kept.
+      const emitted = fs.readFileSync(r!.outFile, "utf8");
+      expect(emitted).toContain("fc.stringMatching(/^(?:[a-z]+)$/)");
+      expect(emitted).toContain("fc.stringMatching(/^(?:\\p{Lu}{2,5})$/u)");
       const env = run(r!.outFile);
       expect(env.failed).toBe(0);
       expect(env.issues).toEqual([]);
