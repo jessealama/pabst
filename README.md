@@ -134,6 +134,9 @@ symbol, which are reported as a one-line message on stderr.
 
 ## Grammar
 
+The normative grammar lives in [`docs/grammar.ebnf`](docs/grammar.ebnf);
+this section is the guided tour.
+
 A property is a universally quantified formula in Pabst's **logic surface**.
 Non-ASCII symbols are the canonical form; most have ASCII fallbacks
 (negation `¬` and the equation glyphs `≡`/`≢` are glyph-only — the ASCII
@@ -189,11 +192,14 @@ spelling of an equation is a plain `Object.is` call).
   `¬(Object.is(A, B))`; nested `!Object.is(A, B)` is fine). This is
   SameValue, not mathematical equality: `NaN ≡ NaN` holds and `-0 ≡ 0` does
   not, so `x + 0 ≡ x` is refutable at `x = -0` (guard with `x ≢ -0 →` if
-  that is intended). Equations apply at every depth of an atom, callbacks
-  included (`xs.every(x => x ≡ 0)`). `≡` binds like JS `==`: tighter than
-  `&&`/`||`/`??`/`?:`, looser than `<`/`<=` — so `a ≡ b ?? c` and
-  `a ≡ b ? c : d` are errors (parenthesize the intended grouping, e.g.
-  `a ≡ (b ? c : d)`). Chains like `a ≡ b ≡ c` are errors — write
+  that is intended).
+  An equation lives at the **top level of an atom** — it splits the atom
+  into two JS sides. In nested positions (callbacks, call arguments,
+  template substitutions), call `Object.is` directly:
+  `xs.every(x => Object.is(x, 0))`, not `xs.every(x => x ≡ 0)`.
+  An unparenthesized `??` or ternary beside `≡` is an error — parenthesize
+  the intended grouping, e.g. `a ≡ (b ?? c)` or `a ≡ (b ? c : d)`.
+  Chains like `a ≡ b ≡ c` are errors — write
   `a ≡ b ∧ b ≡ c`. Loose `==`/`!=` are errors (use `≡`/`≢` or `===`/`!==`);
   `===`/`!==` keep their exact JS meaning; assignments — plain `=` and
   compound forms like `+=` — cannot appear in a formula (default-parameter
